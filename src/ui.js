@@ -43,6 +43,13 @@ const ICON = {
   shield: c => `<svg viewBox="-10 -10 20 20"><path d="M0,-9L8,-6Q8,4 0,9Q-8,4 -8,-6Z" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="1.5"/></svg>`,
   flame: c => `<svg viewBox="-10 -10 20 20"><path d="M0,-10C11,0 8,9 0,9C-8,9 -11,0 0,-10Z" fill="${c}"/></svg>`,
   ash: c => `<svg viewBox="-10 -10 20 20" fill="${c}">${[[-5, 5], [0, 5], [5, 5], [-2.5, 0], [2.5, 0], [0, -5]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2"/>`).join('')}</svg>`,
+  sword: c => `<svg viewBox="-12 -12 24 24"><path d="M7,-9L9,-7L-3,5L-5,3Z M-6,2L-2,6 M-7,7L-5,5" fill="${c}" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  lunge: c => `<svg viewBox="-12 -12 24 24"><path d="M-9,4Q0,-12 9,4 M5,1L9,4L6,8" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  up: c => `<svg viewBox="-12 -12 24 24"><path d="M0,-9L7,0H3V8H-3V0H-7Z" fill="${c}"/></svg>`,
+  down: c => `<svg viewBox="-12 -12 24 24"><path d="M0,9L7,0H3V-8H-3V0H-7Z" fill="${c}"/></svg>`,
+  crack: c => `<svg viewBox="-12 -12 24 24"><path d="M-8,-8L-1,-1L-5,2L3,9 M8,-7L2,-2L6,1" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  plus: c => `<svg viewBox="-12 -12 24 24"><path d="M0,-8V8M-8,0H8" stroke="${c}" stroke-width="3" stroke-linecap="round"/></svg>`,
+  none: c => `<svg viewBox="-12 -12 24 24"><circle r="8" fill="none" stroke="${c}" stroke-width="2"/><path d="M-6,6L6,-6" stroke="${c}" stroke-width="2"/></svg>`,
   crown: c => `<svg viewBox="-12 -12 24 24"><path d="M-10,7V-5L-5,1L0,-9L5,1L10,-5V7Z" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/></svg>`,
 };
 
@@ -181,6 +188,18 @@ function cardHTML(id, o = {}) {
 <div class="ty">${lvl ? `<span class="stars">${'★'.repeat(lvl)}</span>` : ''}${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx">${tx}</div>` : ''}
 ${d.type === 'creature' ? `<div class="p${up}">${pw}</div><div class="h${up}">${hp}</div>` : ''}</div>`;
 }
+const KEYWORDS = Object.fromEntries(GLOSSARY.map(([k, v]) => [k.replace(/ ★$/, ''), v]));
+const keywordsIn = text => Object.keys(KEYWORDS).filter(k => new RegExp(`\\b${k}\\b`).test(text) && k !== 'Empower');
+function preview(id, lvl = 0, extra = '') {
+  document.querySelectorAll('.pv').forEach(x => x.remove());
+  const d = card(id), kws = keywordsIn(cardText(id, lvl));
+  const m = document.createElement('div'); m.className = 'pv';
+  m.innerHTML = `<div class="pv-in">${cardHTML(id, { lvl, cls: 'huge' })}
+${extra ? `<div class="pv-x">${extra}</div>` : ''}${kws.length ? `<div class="gl pv-kw">${kws.map(k => `<b>${k}</b><span class="dim">${KEYWORDS[k]}</span>`).join('')}</div>` : ''}</div>`;
+  m.onclick = () => m.remove();
+  document.body.appendChild(m);
+  return m;
+}
 const asEntry = e => typeof e === 'string' ? { id: e, lvl: 0 } : e;
 function showDeck(entries, title, sub = '') {
   const m = document.createElement('div'); m.className = 'modal';
@@ -244,7 +263,8 @@ function showPath() {
   const s = screen(`<h1 class="center" style="font-size:30px">${Run.isFinal(r) ? 'The Final Pyre' : `Fight ${r.fight} of ${TOTAL_FIGHTS}`}</h1>
 <div class="track">${dots}</div><div class="center faint small" style="font-weight:700">Gold dot: Augment after that fight</div>
 <div class="foe">${sigil(Run.currentEnemy(r), col, { eye: true, glow: e.tier >= 3, lw: 1.8 })}
-<div><div class="tierline">${tier}</div><h2 style="font-size:30px">${esc(e.name)}</h2><div class="dim" style="font:600 16px var(--title)">${esc(e.title)}</div></div>
+<div><div class="tierline">${tier}</div><h2 style="font-size:30px">${esc(e.name)}</h2><div class="dim" style="font:600 16px var(--title)">${esc(e.title)}</div>
+${e.passive ? `<div class="passive big"><b>${esc(e.passive[0])}:</b> ${esc(e.passive[1])}</div>` : ''}</div>
 <button class="btn primary" id="fight" style="min-width:220px;min-height:54px;font-size:19px">Fight</button></div>
 <div class="row between"><div class="row" style="font-weight:700"><span style="width:18px">${ICON.heart(COL.blood)}</span>${r.maxHP} HP · full heal between fights</div>
 <button class="btn" id="deck" style="min-height:38px;font-size:14px">Deck ${r.deck.length}</button></div>
@@ -269,8 +289,8 @@ function startBattle() {
   const e = B.enemy, col = `hsl(${Math.round(e.hue * 360)} 70% 68%)`;
   const s = screen(`<div class="bt" id="bt">
 <div class="etop"><div class="round"><span class="label">ROUND</span><b id="rnd">1</b><span class="faint" style="font:700 9px var(--body)">Fight ${B.fight} of ${TOTAL_FIGHTS}</span></div>
-<div class="ename"><h2>${esc(e.name)}</h2><div class="dim" style="font:700 10.5px var(--body)">${e.tier === 4 ? 'FINAL · ' : ''}${esc(e.title)}</div></div>
-<div class="intent"><div class="label" style="color:var(--blood);font-size:9px">NEXT</div><b id="it"></b><span id="id"></span></div></div>
+<div class="ename"><h2>${esc(e.name)}</h2>${e.passive ? `<div class="passive" id="pas"><b>${esc(e.passive[0])}:</b> ${esc(e.passive[1])}</div>` : ''}</div>
+<div class="intent" id="intent"><div class="label" style="color:var(--blood);font-size:9px">NEXT</div><div class="ib"><span class="ii" id="ii"></span><b id="in"></b></div><span id="it"></span></div></div>
 <div style="position:relative"><div class="cmd" id="cmd">${sigil(B.enemyId, col, { eye: true, glow: e.tier >= 3, lw: 2 })}<div class="eblock" id="eb"></div></div><div class="combo" id="combo" style="opacity:0"><b>0</b><span>THIS TURN</span></div>
 <div class="hpbar"><i id="ehp"></i><b id="ehpt"></b></div><div class="estatus" id="est"></div></div>
 <div class="board">
@@ -286,12 +306,16 @@ function startBattle() {
 <div class="piles"><button id="pd"></button><span class="hint" id="hint"></span><button id="pu"></button></div>
 <div class="hand" id="hand"></div></div>`);
   $('#end').onclick = () => { Sound.play('tap'); doEndTurn(); };
+  if (!G.meta.seenHold) { G.meta.seenHold = true; Store.save(); setTimeout(() => toast('Tip: hold any card to read it. Tap the enemy to see its trick.', COL.gold), 900); }
   $('#stoke').onclick = () => { Sound.play('tap'); doStoke(); };
   $('#burn').onclick = () => { Sound.play('tap'); doBurn(); };
   $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Sorted, not in draw order');
   $('#pu').onclick = () => showDeck(B.discard, 'Used Pile');
   s.addEventListener('click', e => { if (!e.target.closest('.card') && view.sel != null) { view.sel = null; renderHand(B.snapshot()); } });
-  $('#cmd').onclick = () => { const [t, d] = B.intentText(); toast(`${e.name} · ${B.enemyHP}/${B.enemyMaxHP} HP · Next: ${t}. ${d}.`, COL.blood); };
+  const enemyInfo = () => { const [t, d] = B.intentText(); toast(`${e.name} · ${B.enemyHP}/${B.enemyMaxHP} HP${e.passive ? ` · ${e.passive[0]}: ${e.passive[1]}` : ''} · Next: ${t}. ${d}.`, COL.blood); };
+  $('#cmd').onclick = enemyInfo; $('#intent').onclick = enemyInfo; if ($('#pas')) $('#pas').onclick = enemyInfo;
+  $('#slot-player').onclick = ev => { ev.stopPropagation(); const a = B.allies.player; if (a && a.cardID) preview(a.cardID, a.lvl, `In play: ${a.power} attack, ${Math.max(0, a.health)} health`); };
+  $('#bt').addEventListener('pointerdown', () => { if (view.busy) view.fast = true; });
   render(B.snapshot());
   B.start();
   play(B.takeEvents());
@@ -305,7 +329,10 @@ function allyHTML(a) {
 }
 function render(sn) {
   $('#rnd').textContent = sn.round || 1;
-  $('#it').textContent = sn.intent[0]; $('#id').textContent = sn.intent[1];
+  const ii = sn.intentInfo, ICONS = { attack: ['sword', COL.blood], lunge: ['lunge', COL.blood], block: ['shield', COL.frost], heal: ['heart', COL.heal], enrage: ['up', COL.blood], wither: ['down', COL.vow], shatter: ['crack', COL.gold], summon: ['plus', COL.blood], countered: ['none', COL.ash] };
+  if (ii) { const [ic, cc] = ICONS[ii.kind] || ['none', COL.ash]; $('#ii').innerHTML = ICON[ic](cc); $('#in').textContent = ii.num; $('#in').style.color = cc; }
+  const LBL = { attack: 'Attack', lunge: 'Lunge', block: 'Block', heal: 'Heal', enrage: 'Enrage', wither: 'Wither', shatter: 'Shatter', summon: 'Summon', countered: 'Countered' };
+  $('#it').innerHTML = ii ? `<b>${LBL[ii.kind] || ''}</b> ${esc(sn.intent[1].replace(/ \(−\d+\)$/, ''))}` : '';
   $('#ehp').style.width = Math.max(0, Math.min(100, 100 * sn.enemyHP / sn.enemyMaxHP)) + '%';
   $('#ehpt').textContent = `${Math.max(0, sn.enemyHP)} / ${sn.enemyMaxHP}`;
   const cb = $('#combo'), td = sn.turnDamage || 0;
@@ -345,7 +372,7 @@ function render(sn) {
     const a = sn.artifacts[i];
     return a ? `<div class="art-slot has" data-uid="${a.uid}" data-id="${a.id}" data-lvl="${a.lvl || 0}">${sigil(a.id, COL.gold, { ring: false, lw: 3 })}${a.charges > 0 ? `<span class="ch">${a.charges}</span>` : ''}</div>` : '<div class="art-slot"></div>';
   }).join('');
-  document.querySelectorAll('#arts .art-slot.has').forEach(el => el.onclick = () => { const d = card(el.dataset.id), l = +el.dataset.lvl; toast(`${d.name}${l ? ' ' + '★'.repeat(l) : ''}: ${cardText(d.id, l)}`, COL.gold); });
+  document.querySelectorAll('#arts .art-slot.has').forEach(el => el.onclick = () => preview(el.dataset.id, +el.dataset.lvl, el.querySelector('.ch') ? `${el.querySelector('.ch').textContent} uses left` : ''));
   $('#pd').textContent = `Deck ${sn.drawCount}`; $('#pu').textContent = `Used ${sn.discardCount}`;
   renderHand(sn);
 }
@@ -361,8 +388,17 @@ function renderHand(sn) {
     return cardHTML(c.id, { uid: c.uid, lvl: c.lvl, cls, attr: 'role="button" tabindex="0"' });
   }).join('');
   sn.hand.forEach(c => view.known.add(c.uid));
-  h.querySelectorAll('.card').forEach(el => el.onclick = e => { e.stopPropagation(); tapCard(+el.dataset.uid, el); });
-  $('#hint').textContent = view.sel != null ? 'Tap again to play' : '';
+  h.querySelectorAll('.card').forEach(el => {
+    let t = null, held = false;
+    el.onpointerdown = () => { held = false; clearTimeout(t); t = setTimeout(() => { held = true; const c = B.hand.find(x => x.uid === +el.dataset.uid); if (c) { buzz(10); preview(c.id, c.lvl); } }, 380); };
+    el.onpointerleave = () => clearTimeout(t);
+    el.onpointerup = el.onpointercancel = () => { clearTimeout(t); if (held) document.querySelectorAll('.pv').forEach(x => x.remove()); };
+    el.style.touchAction = 'manipulation';
+    el.oncontextmenu = e => e.preventDefault();
+    el.onclick = e => { e.stopPropagation(); if (held) { held = false; return; } tapCard(+el.dataset.uid, el); };
+  });
+  $('#hint').textContent = view.sel != null ? 'Tap again to play' : 'Hold a card to read it';
+  $('#hint').classList.toggle('on', view.sel != null);
 }
 function tapCard(uid, el) {
   if (view.busy || view.done) return;
@@ -373,7 +409,11 @@ function tapCard(uid, el) {
     view.sel = null; buzz(10);
     Sound.play(card(c.id).type === 'creature' ? 'summon' : 'card');
     B.play(uid); play(B.takeEvents());
-  } else { view.sel = uid; Sound.play('card'); renderHand(B.snapshot()); }
+  } else {
+    view.sel = uid; Sound.play('card'); renderHand(B.snapshot());
+    const kws = keywordsIn(cardText(c.id, c.lvl)).filter(k => !['Block', 'Ash', 'Burn'].includes(k));
+    if (kws.length) toast(kws.map(k => `${k}: ${KEYWORDS[k]}`).join('  ·  '), COL.paper);
+  }
 }
 function doEndTurn() { if (view.busy || view.done) return; view.sel = null; buzz(15); B.endTurn(); play(B.takeEvents()); }
 function doStoke() {
@@ -386,10 +426,10 @@ function doBurn() {
   if (!B.canBurn) { toast(`Burn needs ${B.ashNeeded} Ash. Gain Ash when your creature dies, or Stoke.`, COL.ash); return; }
   buzz(40); B.useBurn(); play(B.takeEvents());
 }
-const DUR = { allyIn: 260, allyAttacks: 220, allyHit: 200, allyChanged: 100, allyDied: 280, faceHit: 240, block: 60, healed: 150, ash: 100,
-              energy: 0, hand: 40, artifacts: 150, artifactFires: 200, status: 80, enemyActs: 600, burn: 550, info: 480 };
+const DUR = { allyIn: 220, allyAttacks: 170, allyHit: 150, allyChanged: 80, allyDied: 220, faceHit: 190, block: 50, healed: 120, ash: 80,
+              energy: 0, hand: 30, artifacts: 110, artifactFires: 150, status: 60, enemyActs: 420, burn: 500, info: 360 };
 async function play(events) {
-  view.busy = true; $('#end').disabled = true;
+  view.busy = true; view.fast = false; $('#end').disabled = true;
   for (const ev of events) {
     const sn = ev.snap;
     switch (ev.type) {
@@ -397,7 +437,7 @@ async function play(events) {
       case 'allyHit': { const n = $(`#slot-${ev.side} .ally`); anim(n, 'shake'); floatAt(n, `-${ev.amount}`, COL.blood, numSize(ev.amount)); Sound.play('hit'); break; }
       case 'allyDied': {
         const n = $(`#slot-${ev.side} .ally`);
-        if (n) { n.classList.add('die'); if (ev.side === 'player') floatAt(n, '+1 Ash', COL.ash, 16); await sleep(240); }
+        if (n) { n.classList.add('die'); if (ev.side === 'player') floatAt(n, '+1 Ash', COL.ash, 16); await sleep(view.fast ? 40 : 200); }
         Sound.play('death'); break;
       }
       case 'faceHit':
@@ -412,15 +452,15 @@ async function play(events) {
       case 'block': if (ev.value > 0) Sound.play('shield'); break;
       case 'ash': Sound.play('ash'); break;
       case 'allyIn': Sound.play('summon'); break;
-      case 'enemyActs': anim($('#cmd'), 'pop'); banner(ev.text, COL.blood, .3, 700); Sound.play('enemy'); break;
+      case 'enemyActs': anim($('#cmd'), 'pop'); anim($('#intent'), 'pop'); if (!view.fast) banner(ev.text, COL.blood, .3, 560); Sound.play('enemy'); break;
       case 'burn': flash(COL.ember, .35); anim($('#bt'), 'quake'); banner(`BURN!  ${ev.amount}`, COL.ember, .55, 700); Sound.play('burn'); break;
-      case 'info': banner(ev.text, COL.paper, .45, 650); break;
+      case 'info': if (!view.fast) banner(ev.text, COL.paper, .45, 520); break;
       case 'artifacts': Sound.play('shield'); break;
     }
     if (sn) render(sn);
     if (ev.type === 'artifactFires') anim($(`#arts [data-uid="${ev.uid}"]`), 'pop');
     if (ev.type === 'allyChanged') anim($('#slot-player .ally .p'), 'pop');
-    const d = DUR[ev.type] || 0; if (d) await sleep(d);
+    const d = DUR[ev.type] || 0; if (d) await sleep(view.fast ? Math.min(d, 40) : d);
   }
   view.busy = false;
   render(B.snapshot());
@@ -542,12 +582,13 @@ ${owned ? '<span class="owned">Offered</span>' : `<button class="btn ${Meta.canB
 function showHowTo(thenPath) {
   const sections = [
     ['Goal', 'Defeat 8 enemies in a row. You heal fully between fights.'],
-    ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it.'],
+    ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it. Hold any card to read it full size.'],
     ['Cards', [['Creature', 'Your one fighter. It takes enemy hits first and attacks at the end of your turn. A new creature replaces the old one.'],
                ['Spell', 'A one-time effect.'],
                ['Artifact', 'Stays in play. Max 3; a 4th replaces your oldest.']]],
     ['Ash and Burn', 'Gain 1 Ash when your creature dies, or Stoke for 2 energy (once per turn). With full Ash, Burn: big damage that ignores Block. Each Burn deals 6 more than the last.'],
     ['The enemy', [['NEXT', 'The box at the top shows its next move.'],
+                   ['Passive', 'Every enemy has a trick, shown under its name.'],
                    ['Lunge', 'Skips your creature and hits you.'],
                    ['Wither', 'Your creature loses attack.'],
                    ['Shatter', 'Destroys your oldest artifact.']]],

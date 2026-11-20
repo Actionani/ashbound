@@ -45,6 +45,9 @@ const Core = (() => {
   spell('emberBolt', 'Ember Bolt', 2, 'starter', 'Deal {6} damage.', D);
   creature('huskHound', 'Husk Hound', 2, 'starter', 2, 3);
   artifact('cinderLamp', 'Cinder Lamp', 2, 'starter', 'End of turn: Deal {3} damage.');
+  spell('singe', 'Singe', 1, 'starter', 'Deal {3} damage. Apply {1} Scorch.', D);
+  spell('ashWard', 'Ash Ward', 1, 'starter', 'Gain {4} Block. Your creature gets +0/+{2}.');
+  creature('boneWard', 'Bone Ward', 1, 'starter', 0, 5, 'Deathrattle: Gain {4} Block.');
 
   spell('flameJab', 'Flame Jab', 1, 'embers', 'Deal {3} damage. Draw a card.', D);
   spell('twinFlames', 'Twin Flames', 2, 'embers', 'Deal {6} damage twice.', D);
@@ -100,7 +103,7 @@ const Core = (() => {
   creature('familiar', 'Arcane Familiar', 2, 'spellbound', 2, 3, 'After you cast a spell, gain +{1}/+{1}.');
   spell('glimmer', 'Glimmer', 0, 'spellbound', 'Draw a card.');
   spell('ritual', 'Ember Ritual', 1, 'spellbound', 'Gain 3 energy.');
-  spell('spellstorm', 'Spellstorm', 1, 'spellbound', 'Deal {5} damage for each other spell you cast this turn.', D);
+  spell('spellstorm', 'Spellstorm', 1, 'spellbound', 'Deal {6} damage for each other spell you cast this turn.', D);
   artifact('echoChamber', 'Echo Chamber', 2, 'spellbound', 'Your first spell each turn is cast twice.');
 
   spell('leechBite', 'Leech Bite', 1, 'bloodrite', 'Lifesteal. Deal {4} damage.', D);
@@ -111,9 +114,9 @@ const Core = (() => {
   spell('martyrsFury', "Martyr's Fury", 2, 'bloodrite', 'Deal damage equal to your missing HP.', D);
 
   spell('boneHarvest', 'Bone Harvest', 2, 'echoes', 'Deal {2} damage per card in your used pile.', D);
-  spell('recall', 'Recall', 1, 'echoes', 'Return the last spell from your used pile to your hand.');
+  spell('recall', 'Recall', 0, 'echoes', 'Return the last spell from your used pile to your hand.');
   creature('restless', 'Restless Dead', 2, 'echoes', 2, 3, 'Deathrattle: Return this to your hand.');
-  creature('ghoul', 'Grave Ghoul', 3, 'echoes', 1, 1, '+{1}/+{1} for each card in your used pile.');
+  creature('ghoul', 'Grave Ghoul', 3, 'echoes', 2, 2, '+{1}/+{1} for each card in your used pile.');
   artifact('ossuary', 'Ossuary', 2, 'echoes', 'Start of turn: Return a random used card to your hand.');
 
   artifact('sunForge', 'Sun Forge', 5, 'legendary', 'Start of turn: Deal {4} damage. Gain {4} Block.');
@@ -127,7 +130,8 @@ const Core = (() => {
   const CARDS = Object.fromEntries(C.map(c => [c.id, c]));
   const card = id => CARDS[id];
   const cardsOf = theme => C.filter(c => c.theme === theme);
-  const STARTER = ['strike', 'strike', 'strike', 'guardUp', 'guardUp', 'ashling', 'ashling', 'emberBolt', 'huskHound', 'cinderLamp'];
+  // Strike and Guard stay defined only so old saved runs still load.
+  const STARTER = ['singe', 'singe', 'singe', 'ashWard', 'boneWard', 'ashling', 'ashling', 'emberBolt', 'huskHound', 'cinderLamp'];
 
   // ---------- Empower (stars) ----------
   const MAX_STARS = 3;
@@ -175,19 +179,19 @@ const Core = (() => {
   const wi = n => ({ kind: 'wither', amount: n });
   const sh = () => ({ kind: 'shatter', amount: 0 });
   const ENEMIES = {
-    huskShepherd: { name: 'Husk Shepherd', title: 'Herder of the Hollow', tier: 1, hp: 34, hue: 0.08, pattern: [su('husk'), at(3), at(4), en(1)] },
-    cinderWraith: { name: 'Cinder Wraith', title: 'Smoke Given Hunger', tier: 1, hp: 30, hue: 0.03, pattern: [at(2, 2), bl(5), at(5)] },
-    inkLeech: { name: 'Ink Leech', title: 'That Which Drinks Names', tier: 1, hp: 34, hue: 0.75, pattern: [at(4), he(5), at(5)] },
-    graveWarden: { name: 'Grave Warden', title: 'Keeper of Quiet Stones', tier: 2, hp: 62, hue: 0.6, pattern: [bl(7), at(6), su('bonewall'), lu(6), at(8)] },
-    paleChoir: { name: 'Pale Chorister', title: 'A Hymn Without Throat', tier: 2, hp: 56, hue: 0.5, pattern: [su('wisp'), lu(5), at(6), en(2)] },
-    hollowMatron: { name: 'Hollow Matron', title: 'Mother of Grubs', tier: 2, hp: 60, hue: 0.3, pattern: [su('grub'), at(6), wi(3), he(8), at(8)] },
-    ashenKnight: { name: 'Ashen Knight', title: 'Oathless Blade', tier: 2, hp: 64, hue: 0.0, pattern: [at(7), sh(), lu(7), at(4, 2), en(2)] },
-    boneOracle: { name: 'Bone Oracle', title: 'Reader of Marrow', tier: 3, hp: 92, hue: 0.85, pattern: [wi(3), at(8), lu(9), bl(12), at(10)] },
-    ironAbbot: { name: 'The Iron Abbot', title: 'Who Prays With Hammers', tier: 3, hp: 100, hue: 0.12, pattern: [bl(12), at(10), sh(), su('abbeyGuard'), wi(4), at(6, 2), en(3)] },
-    wardenOfPyres: { name: 'Warden of Pyres', title: 'Last Keeper of the Flame', tier: 4, hp: 140, hue: 0.06, pattern: [su('pyreguard'), at(10), lu(10), sh(), at(7, 2), wi(3), en(3), at(13)] },
-    silentChoir: { name: 'The Silent Choir', title: 'Many Mouths, No Voice', tier: 4, hp: 120, hue: 0.55, pattern: [at(5, 3), wi(4), su('shade'), lu(11), he(15), at(12), en(3)] },
+    huskShepherd: { name: 'Husk Shepherd', title: 'Herder of the Hollow', tier: 1, hp: 34, hue: 0.08, passive: ['Herder', 'Its minions have +2 attack.'], trick: 'herder', pattern: [su('husk'), at(3), at(4), en(1)] },
+    cinderWraith: { name: 'Cinder Wraith', title: 'Smoke Given Hunger', tier: 1, hp: 30, hue: 0.03, passive: ['Smokeform', 'The first damage it takes each turn is halved.'], trick: 'smoke', pattern: [at(2, 2), bl(5), at(5)] },
+    inkLeech: { name: 'Ink Leech', title: 'That Which Drinks Names', tier: 1, hp: 34, hue: 0.75, passive: ['Leech', 'Heals 3 whenever it damages you.'], trick: 'leech', pattern: [at(4), he(5), at(5)] },
+    graveWarden: { name: 'Grave Warden', title: 'Keeper of Quiet Stones', tier: 2, hp: 62, hue: 0.6, passive: ['Stoneskin', 'Its Block never wears off.'], trick: 'stoneskin', pattern: [bl(7), at(6), su('bonewall'), lu(6), at(8)] },
+    paleChoir: { name: 'Pale Chorister', title: 'A Hymn Without Throat', tier: 2, hp: 56, hue: 0.5, passive: ['Requiem', 'Heals 5 whenever your creature dies.'], trick: 'requiem', pattern: [su('wisp'), lu(5), at(6), en(2)] },
+    hollowMatron: { name: 'Hollow Matron', title: 'Mother of Grubs', tier: 2, hp: 60, hue: 0.3, passive: ['Brood', 'Starts the fight with a Grub.'], trick: 'brood', pattern: [su('grub'), at(6), wi(3), he(8), at(8)] },
+    ashenKnight: { name: 'Ashen Knight', title: 'Oathless Blade', tier: 2, hp: 64, hue: 0.0, passive: ['Riposte', 'After your creature attacks, it takes 3 damage.'], trick: 'riposte', pattern: [at(7), sh(), lu(7), at(4, 2), en(2)] },
+    boneOracle: { name: 'Bone Oracle', title: 'Reader of Marrow', tier: 3, hp: 92, hue: 0.85, passive: ['Foresight', 'Your 3rd spell each turn gives it 8 Block.'], trick: 'foresight', pattern: [wi(3), at(8), lu(9), bl(12), at(10)] },
+    ironAbbot: { name: 'The Iron Abbot', title: 'Who Prays With Hammers', tier: 3, hp: 100, hue: 0.12, passive: ['Plated', 'Takes 1 less damage from each hit.'], trick: 'plated', pattern: [bl(12), at(10), sh(), su('abbeyGuard'), wi(4), at(6, 2), en(3)] },
+    wardenOfPyres: { name: 'Warden of Pyres', title: 'Last Keeper of the Flame', tier: 4, hp: 140, hue: 0.06, passive: ['Rebirth', 'The first time it dies, it returns with 40 HP.'], trick: 'rebirth', pattern: [su('pyreguard'), at(10), lu(10), sh(), at(7, 2), wi(3), en(3), at(13)] },
+    silentChoir: { name: 'The Silent Choir', title: 'Many Mouths, No Voice', tier: 4, hp: 120, hue: 0.55, passive: ['Hush', 'Your Burn needs 1 more Ash.'], trick: 'hush', pattern: [at(5, 3), wi(4), su('shade'), lu(11), he(15), at(12), en(3)] },
   };
-  const TUNING = { 1: [1.0, 0.9], 2: [1.1, 1.1], 3: [1.2, 1.4], 4: [1.15, 1.5] };
+  const TUNING = { 1: [1.0, 0.9], 2: [1.1, 1.1], 3: [1.15, 1.4], 4: [1.0, 1.5] };
   const enemiesOfTier = t => Object.keys(ENEMIES).filter(k => ENEMIES[k].tier === t);
 
   // ---------- Battle ----------
@@ -215,6 +219,7 @@ const Core = (() => {
       this.weaken = 0; this.exposed = false; this.smothered = false; this.rotDmg = 0; this.scorch = 0;
       this.allies = { player: null, enemy: null };
       this.events = []; this.outcome = 'ongoing';
+      this.trick = this.enemy.trick || null; this.smokeUsed = false; this.reborn = false; this.foresightUsed = false;
     }
     makeCard(e) { return typeof e === 'string' ? { uid: this.nextID++, id: e, lvl: 0 } : { uid: this.nextID++, id: e.id, lvl: e.lvl || 0 }; }
     // The i-th {number} of a card, artifact or creature, grown by its stars.
@@ -230,13 +235,13 @@ const Core = (() => {
         allies: { player: cp(this.allies.player), enemy: cp(this.allies.enemy) },
         artifacts: this.artifacts.map(a => ({ ...a })), hand: this.hand.map(c => ({ ...c })),
         drawCount: this.drawPile.length, discardCount: this.discard.length, round: this.round,
-        status: this.enemyStatus, intent: this.intentText(),
+        status: this.enemyStatus, intent: this.intentText(), intentInfo: this.intentInfo(),
       };
     }
     has(id) { return this.artifacts.some(a => a.id === id); }
     count(id) { return this.artifacts.filter(a => a.id === id).length; }
 
-    get ashNeeded() { return this.aug.has('hotCoals') ? 2 : 3; }
+    get ashNeeded() { return (this.aug.has('hotCoals') ? 2 : 3) + (this.trick === 'hush' ? 1 : 0); }
     get canBurn() { return this.outcome === 'ongoing' && this.ash >= this.ashNeeded; }
     get burnDamage() { return (12 + this.burnBonus + this.heat + BURN_GROWTH * this.burns) * (this.aug.has('brandOfFury') ? 2 : 1); }
     get stokePrice() { return this.aug.has('ashCrown') ? 1 : STOKE_COST; }
@@ -259,6 +264,7 @@ const Core = (() => {
     }
 
     start() {
+      if (this.trick === 'brood') this.summonMinion('grub');
       if (this.aug.has('ironThimble')) this.gainBlock(10);
       this.draw(3 + (this.aug.has('boneDice') ? 2 : 0));
       this.rollIntent(1);
@@ -267,7 +273,7 @@ const Core = (() => {
 
     beginTurn() {
       this.round++;
-      this.turnDamage = 0; this.spellsThisTurn = 0; this.echoUsed = false;
+      this.turnDamage = 0; this.spellsThisTurn = 0; this.echoUsed = false; this.smokeUsed = false; this.foresightUsed = false;
       if (this.round > 1 && this.block !== 0) { this.block = 0; this.ev('block', { side: 'player', value: 0 }); }
       this.maxEnergyThisRound = Math.min(this.round, MAX_ENERGY) + (this.aug.has('emberHeart') ? 1 : 0) + this.count('hourglass');
       this.energy = this.maxEnergyThisRound;
@@ -333,6 +339,10 @@ const Core = (() => {
       } else {
         this.discard.push(c);
         const before = this.spellsThisTurn++;
+        if (this.trick === 'foresight' && this.spellsThisTurn === 3 && !this.foresightUsed && !this.exposed) {
+          this.foresightUsed = true; this.enemyBlock += 8;
+          this.ev('info', { text: `Foresight: ${this.enemy.name} gains 8 Block.` }); this.ev('block', { side: 'enemy', value: this.enemyBlock });
+        }
         const times = this.has('echoChamber') && !this.echoUsed ? 2 : 1;
         if (times === 2) { this.echoUsed = true; this.ev('artifactFires', { uid: this.artifacts.find(a => a.id === 'echoChamber').uid }); }
         for (let k = 0; k < times && this.outcome === 'ongoing'; k++) {
@@ -383,6 +393,7 @@ const Core = (() => {
           this.ev('allyAttacks', { side: 'player' });
           const pw = cur.power;
           this.hitFront('enemy', pw);
+          if (this.trick === 'riposte' && this.allies.player === cur && this.outcome === 'ongoing') { this.ev('info', { text: 'Riposte!' }); this.hitAlly('player', 3); }
           if (cur.cardID === 'scorchImp') this.applyScorch(this.N(cur));
           if (cur.cardID === 'vampire') this.healPlayer(pw);
         }
@@ -397,7 +408,7 @@ const Core = (() => {
         }
         if (this.outcome !== 'ongoing') return;
       }
-      if (this.enemyBlock !== 0) { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
+      if (this.enemyBlock !== 0 && this.trick !== 'stoneskin') { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
       if (this.smothered) {
         this.smothered = false;
         this.ev('enemyActs', { text: `${this.enemy.name} is countered.` });
@@ -425,6 +436,8 @@ const Core = (() => {
         case 'fireball': { const e = this.energy; this.energy = 0; this.ev('energy'); if (e > 0) this.hitFront('enemy', n(0) * e + sb); break; }
         case 'ashBlade': this.hitFront('enemy', n(0) + sb); this.gainAsh(1); break;
         case 'guardUp': case 'brace': case 'ironSkin': this.gainBlock(n(0)); break;
+        case 'singe': this.hitFront('enemy', n(0) + sb); this.applyScorch(n(1)); break;
+        case 'ashWard': this.gainBlock(n(0)); this.buffAlly(0, n(1)); break;
         case 'secondWind': this.gainBlock(n(0)); this.draw(1); break;
         case 'shieldBash': this.hitFront('enemy', this.block + sb); break;
         case 'kindle': this.killAlly('player'); if (this.outcome === 'ongoing') this.draw(2); break;
@@ -518,7 +531,7 @@ const Core = (() => {
     }
     summonMinion(m) {
       const [name, bp, bh] = MINIONS[m];
-      const p = bp + Math.floor((this.round - 1) / 3), h = bh + Math.floor((this.round - 1) / 2);
+      const p = bp + Math.floor((this.round - 1) / 3) + (this.trick === 'herder' ? 2 : 0), h = bh + Math.floor((this.round - 1) / 2);
       this.allies.enemy = { id: this.nextID++, name, side: 'enemy', power: p, health: h, maxHealth: h, cardID: null, minion: m, fresh: true };
       this.ev('allyIn', { side: 'enemy' });
     }
@@ -562,6 +575,7 @@ const Core = (() => {
     hitFace(side, amount, ignoreBlock = false) {
       if (amount <= 0 || this.outcome !== 'ongoing') return;
       let a = amount;
+      if (side === 'enemy') a = this.enemyReduce(a);
       if (!ignoreBlock) {
         const key = side === 'player' ? 'block' : 'enemyBlock';
         if (this[key] > 0) {
@@ -574,6 +588,7 @@ const Core = (() => {
         if (side === 'player') this.hp -= a; else this.enemyHP -= a;
         this.tally(side, a);
         this.ev('faceHit', { side, amount: a });
+        if (side === 'player' && this.trick === 'leech' && this.enemyHP > 0) this.healEnemy(3);
       }
       if (side === 'player' && this.hp <= 0 && this.aug.has('phoenixFeather') && !this.featherUsed) {
         this.featherUsed = true;
@@ -584,6 +599,15 @@ const Core = (() => {
       }
       this.checkOutcome();
     }
+    enemyReduce(a) {
+      if (this.trick === 'plated') a = Math.max(0, a - 1);
+      if (this.trick === 'smoke' && !this.smokeUsed && a > 0) { this.smokeUsed = true; a = Math.ceil(a / 2); }
+      return a;
+    }
+    healEnemy(n) {
+      const a = Math.min(n, this.enemyMaxHP - this.enemyHP);
+      if (a > 0) { this.enemyHP += a; this.ev('healed', { side: 'enemy', amount: a }); }
+    }
     killAlly(side) {
       const a = this.allies[side];
       if (!a) return;
@@ -591,6 +615,7 @@ const Core = (() => {
       this.ev('allyDied', { side });
       if (side !== 'player') return;
       this.gainAsh(1);
+      if (this.trick === 'requiem') this.healEnemy(5);
       if (this.aug.has('mourningVeil')) this.gainBlock(5);
       for (const art of this.artifacts.slice()) {
         if (this.outcome !== 'ongoing') break;
@@ -599,6 +624,7 @@ const Core = (() => {
         else if (art.id === 'soulFurnace') { this.ev('artifactFires', { uid: art.uid }); this.energy++; this.ev('energy'); this.draw(1); }
       }
       if (a.cardID === 'cinderMoth') this.hitFront('enemy', this.N(a));
+      else if (a.cardID === 'boneWard') this.gainBlock(this.N(a));
       else if (a.cardID === 'emberFox') this.draw(1);
       else if (a.cardID === 'phoenix') this.gainAsh(2);
       else if (a.cardID === 'broodMother' && this.outcome === 'ongoing' && !this.allies.player) this.summonPlayer('cinderMoth', a.lvl);
@@ -676,6 +702,14 @@ const Core = (() => {
           break;
       }
     }
+    intentInfo() {
+      const i = this.intent;
+      if (!i) return null;
+      if (this.smothered) return { kind: 'countered', num: '' };
+      const atk = Math.max(0, i.amount + this.enrage - this.weaken);
+      const num = i.kind === 'attack' ? (i.hits > 1 ? `${atk}×${i.hits}` : `${atk}`) : i.kind === 'lunge' ? `${atk}` : ['block', 'heal'].includes(i.kind) ? `${i.amount}` : ['enrage', 'wither'].includes(i.kind) ? `${i.amount}` : '';
+      return { kind: i.kind, num };
+    }
     intentText() {
       const i = this.intent;
       if (!i) return ['', ''];
@@ -691,7 +725,7 @@ const Core = (() => {
         case 'shatter': return ['Shatter', this.artifacts.length ? 'Destroys your oldest artifact' : 'You have no artifact'];
         case 'summon': {
           const [name, bp, bh] = MINIONS[i.minion];
-          return ['Summon', `Summons a ${name} ${bp + Math.floor((this.round - 1) / 3)}/${bh + Math.floor((this.round - 1) / 2)}`];
+          return ['Summon', `Summons a ${name} ${bp + Math.floor((this.round - 1) / 3) + (this.trick === 'herder' ? 2 : 0)}/${bh + Math.floor((this.round - 1) / 2)}`];
         }
       }
       return ['', ''];
@@ -707,6 +741,11 @@ const Core = (() => {
     }
     checkOutcome() {
       if (this.outcome !== 'ongoing') return;
+      if (this.enemyHP <= 0 && this.trick === 'rebirth' && !this.reborn) {
+        this.reborn = true; this.enemyHP = 40; this.scorch = 0; this.rotDmg = 0;
+        this.ev('info', { text: `${this.enemy.name} rises again!` }); this.ev('healed', { side: 'enemy', amount: 40 }); this.ev('status');
+        return;
+      }
       if (this.enemyHP <= 0) { this.enemyHP = 0; this.outcome = 'won'; }
       else if (this.hp <= 0) { this.hp = 0; this.outcome = 'lost'; }
     }

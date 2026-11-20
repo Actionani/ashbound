@@ -27,7 +27,7 @@ const playId = (b, id) => b.play(cardOf(b, id).uid);
   b.allies.enemy = { id: 99, name: 'Husk', side: 'enemy', power: 3, health: 4, maxHealth: 4, cardID: null, minion: 'husk', fresh: false };
   const before = b.enemyHP; playId(b, 'turncoat');
   check(!b.allies.enemy && b.enemyHP === before - 9, 'turncoat triple'); }
-{ const b = battle(pad(['boneWall']), 'ashenKnight'); b.energy = 10; playId(b, 'boneWall');
+{ const b = battle(pad(['boneWall']), 'graveWarden'); b.energy = 10; playId(b, 'boneWall');
   b.intent = { kind: 'lunge', amount: 7, hits: 1 }; const hp = b.hp; b.endTurn(); b.takeEvents();
   check(b.hp === hp - 7 && b.allies.player.health === 11, 'lunge skips creature'); }
 // Empower
@@ -42,7 +42,7 @@ const playId = (b, id) => b.play(cardOf(b, id).uid);
 { const b = battle(['glimmer', 'ritual', 'spellstorm', 'familiar', 'strike', 'strike']); b.energy = 10;
   playId(b, 'familiar'); playId(b, 'glimmer'); playId(b, 'ritual');
   check(b.allies.player.power === 4 && b.energy === 10, 'familiar grows, ritual nets +2');
-  const before = b.enemyHP; playId(b, 'spellstorm'); check(before - b.enemyHP === 10, 'spellstorm counts 2 prior spells'); }
+  const before = b.enemyHP; playId(b, 'spellstorm'); check(before - b.enemyHP === 12, 'spellstorm counts 2 prior spells'); }
 { const b = battle(pad(['echoChamber', 'emberBolt'])); b.energy = 10; playId(b, 'echoChamber');
   const hp = b.enemyHP; playId(b, 'emberBolt'); check(b.enemyHP === hp - 12, 'echo chamber casts twice');
   const hp2 = b.enemyHP; playId(b, 'strike'); check(b.enemyHP === hp2 - 3, 'only the first spell echoes'); }
@@ -68,4 +68,13 @@ const playId = (b, id) => b.play(cardOf(b, id).uid);
   check(C.Run.takeEmpower(r, 0, meta) === 'preFight' && r.stars[0] === 1 && r.fight === 2, 'empowered and moved on');
   const old = { ...JSON.parse(JSON.stringify(r)) }; delete old.stars; C.Run.fix(old); check(old.stars.length === old.deck.length, 'old save loads');
   const back = JSON.parse(JSON.stringify(r)); check(back.fight === 2 && back.rngState === r.rngState, 'save round trip'); }
+// Enemy passives + new starter
+{ const r = C.Run.create(C.newMeta(), 3); check(!r.deck.includes('strike') && !r.deck.includes('guardUp') && r.deck.length === 10, 'starter has no Strike/Guard'); }
+{ const b = battle(pad(['boneWard'])); b.energy = 10; playId(b, 'boneWard'); b.killAlly('player'); check(b.block === 4, 'bone ward deathrattle block'); }
+{ const b = battle(pad([]), 'ironAbbot'); b.energy = 10; const hp = b.enemyHP; playId(b, 'strike'); check(b.enemyHP === hp - 2, 'plated -1 per hit'); }
+{ const b = battle(pad([]), 'cinderWraith'); b.energy = 10; const hp = b.enemyHP; playId(b, 'strike'); playId(b, 'strike'); check(b.enemyHP === hp - 5, 'smokeform halves first hit'); }
+{ const b = battle(pad([]), 'wardenOfPyres'); b.hitFace('enemy', 999, true); check(b.outcome === 'ongoing' && b.enemyHP === 40, 'rebirth');
+  b.hitFace('enemy', 999, true); check(b.outcome === 'won', 'dies for good second time'); }
+{ const b = battle(pad([]), 'silentChoir'); check(b.ashNeeded === 4, 'hush: burn needs 4'); }
+{ const b = battle(pad([]), 'hollowMatron'); check(b.allies.enemy && b.allies.enemy.minion === 'grub', 'brood starts with grub'); }
 console.log(fails ? fails + ' FAILURES' : 'ALL PASS');

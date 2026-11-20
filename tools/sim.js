@@ -19,7 +19,7 @@ function score(b, c) {
   if (d.damaging && !['shieldBash', 'fireball', 'spellstorm', 'martyrsFury', 'boneHarvest'].includes(c.id)) return 10 + d.cost * 4;
   switch (c.id) {
     case 'shieldBash': return b.block >= 6 ? 14 + (b.block >> 1) : 0;
-    case 'guardUp': case 'brace': case 'secondWind': case 'ironSkin': { const need = incoming(b) - b.block; return need > 0 ? 12 + Math.min(need, 16) + d.cost : 1; }
+    case 'guardUp': case 'ashWard': case 'brace': case 'secondWind': case 'ironSkin': { const need = incoming(b) - b.block; return need > 0 ? 12 + Math.min(need, 16) + d.cost : 1; }
     case 'kindle': return 5;
     case 'swarmCall': return b.allies.player ? 4 : 8;
     case 'fanFlames': case 'battleCry': return 10 + d.cost * 3;
