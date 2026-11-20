@@ -22,11 +22,11 @@ const Core = (() => {
   // ---------- Cards ----------
   // Numbers in {braces} are the card's power numbers: Empower (stars) scales them by +50% per star.
   const THEMES = {
-    starter: ['Starter', ''], embers: ['Embers', 'Direct damage spells'], bulwark: ['Bulwark', 'Block and sturdy walls'],
-    swarm: ['Swarm', 'Small creatures that die for value'], artifice: ['Artifice', 'Artifacts that keep working'],
+    starter: ['Starter', ''], embers: ['Embers', 'Direct damage'], bulwark: ['Bulwark', 'Block and walls'],
+    swarm: ['Swarm', 'Creatures that die for value'], artifice: ['Artifice', 'Lasting artifacts'],
     scorch: ['Scorch', 'Damage over time'], giants: ['Giants', 'Big creatures and buffs'], pyre: ['Pyre', 'Ash and Burn'],
-    hex: ['Hex', 'Curses that cripple the enemy'], spellbound: ['Spellbound', 'Chain spells for one huge turn'],
-    bloodrite: ['Bloodrite', 'Spend HP for power, drain it back'], echoes: ['Echoes', 'Your used pile comes back'],
+    hex: ['Hex', 'Curses and counters'], spellbound: ['Spellbound', 'Chain spells into one huge turn'],
+    bloodrite: ['Bloodrite', 'Pay HP, drain it back'], echoes: ['Echoes', 'Recycle your used pile'],
     legendary: ['Legendary', ''],
   };
   const C = [];
@@ -252,9 +252,9 @@ const Core = (() => {
     }
     blockedReason(c) {
       const d = card(c.id);
-      if (d.cost > this.energy) return 'Not enough energy. You get 1 more each round.';
-      if (d.needsAlly && !this.allies.player) return 'You need a creature in front of you.';
-      if (c.id === 'turncoat' && !this.allies.enemy) return 'The enemy has no minion.';
+      if (d.cost > this.energy) return 'Not enough energy.';
+      if (d.needsAlly && !this.allies.player) return 'Needs a creature.';
+      if (c.id === 'turncoat' && !this.allies.enemy) return 'No enemy minion.';
       return null;
     }
 
@@ -274,14 +274,14 @@ const Core = (() => {
       this.stokedThisTurn = false;
       this.ev('energy');
       if (this.scorch > 0) {
-        this.ev('info', { text: `Scorch burns for ${this.scorch}.` });
+        this.ev('info', { text: `Scorch deals ${this.scorch}.` });
         this.hitFace('enemy', this.scorch, true);
         if (this.outcome !== 'ongoing') return;
         if (!this.has('eternalEmber')) this.scorch--;
         this.ev('status');
       }
       if (this.rotDmg > 0) {
-        this.ev('info', { text: `Rot gnaws for ${this.rotDmg}.` });
+        this.ev('info', { text: `Rot deals ${this.rotDmg}.` });
         this.hitFace('enemy', this.rotDmg, true);
         if (this.outcome !== 'ongoing') return;
       }
@@ -400,7 +400,7 @@ const Core = (() => {
       if (this.enemyBlock !== 0) { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
       if (this.smothered) {
         this.smothered = false;
-        this.ev('enemyActs', { text: `${this.enemy.name}'s action is countered.` });
+        this.ev('enemyActs', { text: `${this.enemy.name} is countered.` });
         this.ev('status');
       } else if (this.intent) this.execute(this.intent);
       if (this.outcome !== 'ongoing') return;
@@ -459,7 +459,7 @@ const Core = (() => {
         case 'wildfire': if (this.scorch > 0) this.hitFace('enemy', this.scorch + sb, true); this.applyScorch(n(0)); break;
         case 'glimmer': this.draw(1); break;
         case 'ritual': this.energy += 3; this.ev('energy'); break;
-        case 'spellstorm': if (spellsBefore > 0) this.hitFront('enemy', n(0) * spellsBefore + sb); else this.ev('info', { text: 'No other spells this turn.' }); break;
+        case 'spellstorm': if (spellsBefore > 0) this.hitFront('enemy', n(0) * spellsBefore + sb); else this.ev('info', { text: 'No other spells cast this turn.' }); break;
         case 'leechBite': this.hitFront('enemy', n(0) + sb); this.healPlayer(n(0) + sb); break;
         case 'bloodPact': this.loseHP(3); if (this.outcome === 'ongoing') this.draw(2); break;
         case 'crimsonPact': this.loseHP(5); this.hitFront('enemy', n(0) + sb); break;
@@ -495,7 +495,7 @@ const Core = (() => {
     placeArtifact(c) {
       if (this.artifacts.length >= MAX_ARTIFACTS) {
         const old = this.artifacts.shift();
-        this.ev('info', { text: `${card(old.id).name} crumbles to make room.` });
+        this.ev('info', { text: `${card(old.id).name} is replaced.` });
       }
       this.artifacts.push({ uid: c.uid, id: c.id, lvl: c.lvl || 0, charges: card(c.id).charges });
       this.ev('artifacts');
@@ -554,7 +554,7 @@ const Core = (() => {
         dmg = Math.max(0, dmg - this.N(s));
         s.charges--;
         this.ev('artifactFires', { uid: s.uid });
-        if (s.charges <= 0) { this.artifacts.splice(i, 1); this.ev('info', { text: 'The Mirror Shard breaks.' }); }
+        if (s.charges <= 0) { this.artifacts.splice(i, 1); this.ev('info', { text: 'Mirror Shard shatters.' }); }
         this.ev('artifacts');
       }
       if (skipAlly) this.hitFace('player', dmg); else this.hitFront('player', dmg);
@@ -580,7 +580,7 @@ const Core = (() => {
         const back = 10 - this.hp;
         this.hp = 10;
         this.ev('healed', { side: 'player', amount: back });
-        this.ev('info', { text: 'The Phoenix Feather burns. You rise again!' });
+        this.ev('info', { text: 'Phoenix Feather! You survive at 10 HP.' });
       }
       this.checkOutcome();
     }
@@ -653,23 +653,23 @@ const Core = (() => {
           this.enemyAttack(i.amount + this.enrage, true);
           break;
         case 'block':
-          if (this.exposed) this.ev('enemyActs', { text: `${n} tries to brace, but is Exposed.` });
-          else { this.ev('enemyActs', { text: `${n} braces.` }); this.enemyBlock += i.amount; this.ev('block', { side: 'enemy', value: this.enemyBlock }); }
+          if (this.exposed) this.ev('enemyActs', { text: `${n} can't Block (Exposed).` });
+          else { this.ev('enemyActs', { text: `${n} gains ${i.amount} Block.` }); this.enemyBlock += i.amount; this.ev('block', { side: 'enemy', value: this.enemyBlock }); }
           break;
         case 'heal': {
-          this.ev('enemyActs', { text: `${n} heals.` });
+          this.ev('enemyActs', { text: `${n} heals ${i.amount}.` });
           const a = Math.min(i.amount, this.enemyMaxHP - this.enemyHP);
           if (a > 0) { this.enemyHP += a; this.ev('healed', { side: 'enemy', amount: a }); }
           break;
         }
-        case 'enrage': this.ev('enemyActs', { text: `${n} grows angrier.` }); this.enrage += i.amount; this.ev('status'); break;
+        case 'enrage': this.ev('enemyActs', { text: `${n} enrages: attacks +${i.amount}.` }); this.enrage += i.amount; this.ev('status'); break;
         case 'wither':
-          this.ev('enemyActs', { text: `${n} withers your creature.` });
+          this.ev('enemyActs', { text: `${n} withers your creature: −${i.amount} attack.` });
           if (this.allies.player) { this.allies.player.power = Math.max(0, this.allies.player.power - i.amount); this.ev('allyChanged', { side: 'player' }); }
           break;
         case 'shatter':
-          if (!this.artifacts.length) this.ev('enemyActs', { text: `${n} swings at nothing.` });
-          else { const old = this.artifacts.shift(); this.ev('enemyActs', { text: `${n} shatters your ${card(old.id).name}!` }); this.ev('artifacts'); }
+          if (!this.artifacts.length) this.ev('enemyActs', { text: `${n} finds no artifact to destroy.` });
+          else { const old = this.artifacts.shift(); this.ev('enemyActs', { text: `${n} destroys your ${card(old.id).name}!` }); this.ev('artifacts'); }
           break;
         case 'summon':
           if (!this.allies.enemy && i.minion) { this.ev('enemyActs', { text: `${n} summons a ${MINIONS[i.minion][0]}.` }); this.summonMinion(i.minion); }
@@ -679,19 +679,19 @@ const Core = (() => {
     intentText() {
       const i = this.intent;
       if (!i) return ['', ''];
-      if (this.smothered) return ['Countered', 'Its next action fails'];
+      if (this.smothered) return ['Countered', 'Skips its next action'];
       const w = this.weaken > 0 ? ` (−${this.weaken})` : '';
       switch (i.kind) {
         case 'attack': { const n = Math.max(0, i.amount + this.enrage - this.weaken); return [i.hits > 1 ? `Attack ${n}×${i.hits}` : `Attack ${n}`, 'Hits your creature first' + w]; }
         case 'lunge': return [`Lunge ${Math.max(0, i.amount + this.enrage - this.weaken)}`, 'Skips your creature' + w];
-        case 'block': return [`Block ${i.amount}`, this.exposed ? 'Blocked by Expose' : 'Shields itself'];
-        case 'heal': return [`Heal ${i.amount}`, 'Restores its HP'];
-        case 'enrage': return [`Enrage +${i.amount}`, 'Its attacks get stronger'];
-        case 'wither': return [`Wither ${i.amount}`, "Your creature loses attack"];
-        case 'shatter': return ['Shatter', this.artifacts.length ? 'Breaks your oldest artifact' : 'No artifact to break'];
+        case 'block': return [`Block ${i.amount}`, this.exposed ? "Can't Block (Exposed)" : 'Gains Block'];
+        case 'heal': return [`Heal ${i.amount}`, 'Heals itself'];
+        case 'enrage': return [`Enrage +${i.amount}`, 'Its attacks grow for good'];
+        case 'wither': return [`Wither ${i.amount}`, 'Your creature loses attack'];
+        case 'shatter': return ['Shatter', this.artifacts.length ? 'Destroys your oldest artifact' : 'You have no artifact'];
         case 'summon': {
           const [name, bp, bh] = MINIONS[i.minion];
-          return ['Summon', `${name} ${bp + Math.floor((this.round - 1) / 3)}/${bh + Math.floor((this.round - 1) / 2)}`];
+          return ['Summon', `Summons a ${name} ${bp + Math.floor((this.round - 1) / 3)}/${bh + Math.floor((this.round - 1) / 2)}`];
         }
       }
       return ['', ''];
@@ -715,17 +715,17 @@ const Core = (() => {
 
   // ---------- Meta (permanent unlocks) ----------
   const UNLOCKS = [
-    ['vitality1', 'Vitality I', 'Start every run with +3 max HP.', 40, null],
-    ['themeGiants', 'Giants Bundles', 'Giants bundles can be offered: big creatures and buffs.', 50, null],
-    ['hotterBurn', 'Hotter Burn I', 'Burn deals 2 more damage.', 60, null],
-    ['themeHex', 'Hex Bundles', 'Hex bundles can be offered: Weaken, Rot, Smother and more.', 70, null],
-    ['widerChoice', 'Wider Choice', 'See 4 card bundles after each fight instead of 3.', 80, null],
-    ['vitality2', 'Vitality II', 'Start every run with +3 max HP.', 100, 'vitality1'],
-    ['themePyre', 'Pyre Bundles', 'Pyre bundles can be offered: Ash and Burn.', 90, null],
-    ['treasureHunter', 'Treasure Hunter', 'See 4 augments instead of 3.', 110, null],
-    ['headStart', 'Head Start', 'Start every run with a random augment.', 150, null],
-    ['hotterBurn2', 'Hotter Burn II', 'Burn deals 2 more damage.', 120, 'hotterBurn'],
-    ['vitality3', 'Vitality III', 'Start every run with +3 max HP.', 160, 'vitality2'],
+    ['vitality1', 'Vitality I', '+3 max HP.', 40, null],
+    ['themeGiants', 'Giants', 'Adds the Giants theme: big creatures and buffs.', 50, null],
+    ['hotterBurn', 'Hotter Burn I', 'Burn deals +2 damage.', 60, null],
+    ['themeHex', 'Hex', 'Adds the Hex theme: curses and counters.', 70, null],
+    ['widerChoice', 'Wider Choice', 'Choose from 4 card bundles instead of 3.', 80, null],
+    ['vitality2', 'Vitality II', '+3 max HP.', 100, 'vitality1'],
+    ['themePyre', 'Pyre', 'Adds the Pyre theme: Ash and Burn.', 90, null],
+    ['treasureHunter', 'Treasure Hunter', 'Choose from 4 Augments instead of 3.', 110, null],
+    ['headStart', 'Head Start', 'Start each run with a random Augment.', 150, null],
+    ['hotterBurn2', 'Hotter Burn II', 'Burn deals +2 damage.', 120, 'hotterBurn'],
+    ['vitality3', 'Vitality III', '+3 max HP.', 160, 'vitality2'],
   ].map(([id, name, detail, cost, requires]) => ({ id, name, detail, cost, requires }));
 
   const newMeta = () => ({ ash: 0, lifetimeAsh: 0, unlocked: [], runs: 0, wins: 0, bestFight: 0, bestTurn: 0, soundOn: true, seenTutorial: false });
@@ -823,19 +823,16 @@ const Core = (() => {
   };
 
   const GLOSSARY = [
-    ['Energy', 'Round 1 gives 1, round 2 gives 2, up to 10.'],
-    ['Creature', 'One at a time, in front of you. Takes hits first. Attacks at end of turn.'],
-    ['Spell', 'Happens once, then goes to your used pile.'],
-    ['Artifact', 'Stays in play. Hold up to 3; a 4th replaces the oldest.'],
-    ['Block', 'Stops damage until your next turn.'],
-    ['Scorch', 'Start of your turn: the enemy takes damage equal to its Scorch, then Scorch drops by 1.'],
-    ['Ash', 'Gain 1 when your creature dies, or Stoke. Full Ash lets you Burn.'],
-    ['Burn', 'A big hit that ignores Block. Grows by 6 each time you Burn in a fight.'],
-    ['Stoke', 'Pay 2 energy: Gain 1 Ash. Once per turn.'],
-    ['Deathrattle', 'Happens when this creature dies.'],
+    ['Block', 'Absorbs damage. Lasts until your next turn.'],
+    ['Ash', 'Gain 1 when your creature dies. Fill it to Burn.'],
+    ['Stoke', 'Pay 2 energy: gain 1 Ash. Once per turn.'],
+    ['Burn', 'Spend full Ash: deal big damage that ignores Block. Each Burn deals 6 more.'],
+    ['Scorch', 'Start of your turn: deals its amount to the enemy, then drops by 1.'],
+    ['Deathrattle', 'Triggers when this creature dies.'],
     ['Lifesteal', 'Damage dealt also heals you.'],
-    ['Sacrifice', 'Your creature dies (you still gain its Ash).'],
-    ['Empower', 'After each win, star a card: its gold numbers grow 50% per star (max 3).'],
+    ['Sacrifice', 'Destroy your creature. You still gain its Ash.'],
+    ['Counter', 'The enemy skips its next action.'],
+    ['Empower ★', 'Boosts a card’s gold numbers by 50%. Max ★★★.'],
   ];
 
   return { RNG, CARDS, card, cardsOf, THEMES, MAX_STARS, scale, canEmpower, stats, textParts, cardText, STARTER, AUGMENTS, AUGMENT_IDS, ENEMIES, MINIONS, TUNING, Battle,

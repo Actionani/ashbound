@@ -242,17 +242,17 @@ function showPath() {
     return `<span class="dot ${f < r.fight ? 'done' : ''} ${f === r.fight ? 'cur' : ''} ${AUGMENT_AFTER.includes(f) ? 'aug' : ''}"></span>`;
   }).join('');
   const s = screen(`<h1 class="center" style="font-size:30px">${Run.isFinal(r) ? 'The Final Pyre' : `Fight ${r.fight} of ${TOTAL_FIGHTS}`}</h1>
-<div class="track">${dots}</div><div class="center faint small" style="font-weight:700">Gold dots: an augment after that fight</div>
+<div class="track">${dots}</div><div class="center faint small" style="font-weight:700">Gold dot: Augment after that fight</div>
 <div class="foe">${sigil(Run.currentEnemy(r), col, { eye: true, glow: e.tier >= 3, lw: 1.8 })}
 <div><div class="tierline">${tier}</div><h2 style="font-size:30px">${esc(e.name)}</h2><div class="dim" style="font:600 16px var(--title)">${esc(e.title)}</div></div>
 <button class="btn primary" id="fight" style="min-width:220px;min-height:54px;font-size:19px">Fight</button></div>
-<div class="row between"><div class="row" style="font-weight:700"><span style="width:18px">${ICON.heart(COL.blood)}</span>${r.maxHP} HP · full heal each fight</div>
+<div class="row between"><div class="row" style="font-weight:700"><span style="width:18px">${ICON.heart(COL.blood)}</span>${r.maxHP} HP · full heal between fights</div>
 <button class="btn" id="deck" style="min-height:38px;font-size:14px">Deck ${r.deck.length}</button></div>
 <div class="label" style="margin-top:8px">Augments</div>
 <div class="chips" style="min-height:40px;margin-top:4px">${r.augments.length ? r.augments.map(a => `<div class="medal" data-a="${a}">${sigil(a, COL.gold, { ring: false, lw: 3 })}</div>`).join('') : '<span class="faint small" style="font-weight:700">None yet</span>'}</div>
 <button class="btn quiet" id="quit" style="margin:4px auto 0">Save & Quit</button>`);
   on(s, '#fight', () => startBattle());
-  on(s, '#deck', () => showDeck(Run.deckCards(r), 'Your Deck', 'Gold numbers have grown from Empower'));
+  on(s, '#deck', () => showDeck(Run.deckCards(r), 'Your Deck', 'Gold numbers are Empowered'));
   on(s, '.medal', el => { const a = AUGMENTS[el.dataset.a]; toast(`${a[0]}: ${a[1]}`, COL.gold); });
   on(s, '#quit', () => { Store.save(); showMenu(); });
 }
@@ -288,10 +288,10 @@ function startBattle() {
   $('#end').onclick = () => { Sound.play('tap'); doEndTurn(); };
   $('#stoke').onclick = () => { Sound.play('tap'); doStoke(); };
   $('#burn').onclick = () => { Sound.play('tap'); doBurn(); };
-  $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Shown sorted, not in draw order');
+  $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Sorted, not in draw order');
   $('#pu').onclick = () => showDeck(B.discard, 'Used Pile');
   s.addEventListener('click', e => { if (!e.target.closest('.card') && view.sel != null) { view.sel = null; renderHand(B.snapshot()); } });
-  $('#cmd').onclick = () => { const [t, d] = B.intentText(); toast(`${e.name}: ${B.enemyHP}/${B.enemyMaxHP} HP. Next: ${t} (${d}).`, COL.blood); };
+  $('#cmd').onclick = () => { const [t, d] = B.intentText(); toast(`${e.name} · ${B.enemyHP}/${B.enemyMaxHP} HP · Next: ${t}. ${d}.`, COL.blood); };
   render(B.snapshot());
   B.start();
   play(B.takeEvents());
@@ -340,7 +340,7 @@ function render(sn) {
   const burn = $('#burn'); burn.className = 'side-btn ' + (sn.canBurn ? 'ready' : 'off');
   $('#burnl').textContent = sn.canBurn ? `BURN ${sn.burnDamage}` : 'BURN';
   $('#stoke').className = 'side-btn ' + (sn.canStoke ? '' : 'off');
-  $('#stokecap').textContent = `${sn.stokePrice} energy → 1 Ash`;
+  $('#stokecap').textContent = `${sn.stokePrice} energy: +1 Ash`;
   $('#arts').innerHTML = [...Array(MAX_ARTIFACTS)].map((_, i) => {
     const a = sn.artifacts[i];
     return a ? `<div class="art-slot has" data-uid="${a.uid}" data-id="${a.id}" data-lvl="${a.lvl || 0}">${sigil(a.id, COL.gold, { ring: false, lw: 3 })}${a.charges > 0 ? `<span class="ch">${a.charges}</span>` : ''}</div>` : '<div class="art-slot"></div>';
@@ -378,12 +378,12 @@ function tapCard(uid, el) {
 function doEndTurn() { if (view.busy || view.done) return; view.sel = null; buzz(15); B.endTurn(); play(B.takeEvents()); }
 function doStoke() {
   if (view.busy || view.done) return;
-  if (!B.canStoke) { toast(B.stokedThisTurn ? 'You already stoked this turn.' : B.ash >= B.ashNeeded ? 'Your Ash is full. Burn it!' : `Stoke costs ${B.stokePrice} energy.`, COL.ash); return; }
+  if (!B.canStoke) { toast(B.stokedThisTurn ? 'Already stoked this turn.' : B.ash >= B.ashNeeded ? 'Ash is full. Burn!' : `Stoke costs ${B.stokePrice} energy.`, COL.ash); return; }
   B.stoke(); play(B.takeEvents());
 }
 function doBurn() {
   if (view.busy || view.done) return;
-  if (!B.canBurn) { toast(`Burn is ready at ${B.ashNeeded} Ash. Gain Ash when your creature dies, or Stoke.`, COL.ash); return; }
+  if (!B.canBurn) { toast(`Burn needs ${B.ashNeeded} Ash. Gain Ash when your creature dies, or Stoke.`, COL.ash); return; }
   buzz(40); B.useBurn(); play(B.takeEvents());
 }
 const DUR = { allyIn: 260, allyAttacks: 220, allyHit: 200, allyChanged: 100, allyDied: 280, faceHit: 240, block: 60, healed: 150, ash: 100,
@@ -456,10 +456,10 @@ function showReward() {
   const r = G.run; let chosen = null;
   const bundles = r.pendingBundles.map((b, i) => `<div class="panel" data-i="${i}"><div class="row between"><b style="font:700 15px var(--body)">${THEMES[b.theme][0]}</b><span class="dim small">${THEMES[b.theme][1]}</span></div>
 <div class="cards">${b.cards.map(id => cardHTML(id, { cls: 'big' })).join('')}</div></div>`).join('');
-  const art = r.pendingArtifact ? `<div class="panel gold" data-i="-1"><div class="label" style="color:var(--gold)">OR ONE LEGENDARY ARTIFACT</div>
-<div class="row" style="align-items:flex-start;margin-top:8px">${cardHTML(r.pendingArtifact, { cls: 'big' })}<div class="small" style="font-weight:600">One card instead of three. Artifacts stay in play once cast.<br><br><b>${esc(card(r.pendingArtifact).name)}:</b> ${esc(card(r.pendingArtifact).text)}</div></div></div>` : '';
+  const art = r.pendingArtifact ? `<div class="panel gold" data-i="-1"><div class="label" style="color:var(--gold)">OR A LEGENDARY ARTIFACT</div>
+<div class="row" style="align-items:flex-start;margin-top:8px">${cardHTML(r.pendingArtifact, { cls: 'big' })}<div class="small" style="font-weight:600">1 powerful card instead of 3.<br><br><b>${esc(card(r.pendingArtifact).name)}:</b> ${esc(cardText(r.pendingArtifact, 0))}</div></div></div>` : '';
   const s = screen(`<h1 class="center" style="color:var(--ember);font-size:34px">Victory</h1>
-<div class="center dim small" style="font-weight:700;margin:4px 0 8px">Take a bundle of 3 cards, or one Legendary Artifact.</div>
+<div class="center dim small" style="font-weight:700;margin:4px 0 8px">Take 3 cards, or 1 Legendary Artifact.</div>
 <div class="scroll"><div class="list">${bundles}${art}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn primary" id="take" disabled>Take Bundle</button><button class="btn quiet" id="skip">Skip</button></div>`);
   on(s, '.panel', el => {
@@ -486,8 +486,8 @@ function showEmpower() {
   const seen = new Set(), list = opts.filter(i => { const k = r.deck[i] + ':' + r.stars[i]; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => card(r.deck[a]).cost - card(r.deck[b]).cost || card(r.deck[a]).name.localeCompare(card(r.deck[b]).name) || r.stars[b] - r.stars[a]);
   const s = screen(`<h1 class="center" style="color:var(--gold);font-size:30px">Empower a Card</h1>
-<div class="center dim small" style="font-weight:700;margin:4px 0 2px">Its gold numbers grow 50% per ★ (max ${MAX_STARS}).${r.empowersLeft > 1 ? ` ${r.empowersLeft} left.` : ''}</div>
-<div class="emp-prev" id="prev"><span class="faint small" style="font-weight:700">Tap a card to preview</span></div>
+<div class="center dim small" style="font-weight:700;margin:4px 0 2px">Each ★ boosts its gold numbers by 50%. Max ${'★'.repeat(MAX_STARS)}.${r.empowersLeft > 1 ? ` ${r.empowersLeft} left.` : ''}</div>
+<div class="emp-prev" id="prev"><span class="faint small" style="font-weight:700">Tap a card to preview it</span></div>
 <div class="scroll"><div class="grid emp-pick">${list.map(i => cardHTML(r.deck[i], { lvl: r.stars[i], attr: `data-i="${i}"` })).join('')}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn gold" id="take" disabled>Empower</button><button class="btn quiet" id="skip">Skip</button></div>`);
   on(s, '.emp-pick .card', el => {
@@ -503,7 +503,7 @@ function showEmpower() {
 function showAugment() {
   const r = G.run; let chosen = null;
   const s = screen(`<div class="center" style="padding-top:6px"><div style="width:96px;margin:0 auto;animation:spin 40s linear infinite">${sigil('augment-choice', COL.gold, { glow: true, lw: 1.8 })}</div>
-<h1 style="color:var(--gold);font-size:30px;margin-top:6px">Choose an Augment</h1><div class="dim small" style="font-weight:700;margin:4px 0 10px">It lasts for the rest of this run.</div></div>
+<h1 style="color:var(--gold);font-size:30px;margin-top:6px">Choose an Augment</h1><div class="dim small" style="font-weight:700;margin:4px 0 10px">Lasts for the rest of this run.</div></div>
 <div class="scroll"><div class="list">${r.pendingAugments.map(a => `<div class="panel gold aug" data-a="${a}"><div class="medal">${sigil(a, COL.gold, { ring: false, lw: 3 })}</div>
 <div><b>${AUGMENTS[a][0]}</b><span style="font-weight:600;font-size:14px">${AUGMENTS[a][1]}</span></div></div>`).join('')}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn gold" id="take" disabled>Take Augment</button></div>`);
@@ -541,18 +541,23 @@ ${owned ? '<span class="owned">Offered</span>' : `<button class="btn ${Meta.canB
 }
 function showHowTo(thenPath) {
   const sections = [
-    ['The run', 'Beat 8 foes in a row; you fully heal between fights. After each win: take 3 cards or a Legendary Artifact, then Empower a card (★ grows its gold numbers 50%). After fights 2, 4 and 6, pick an Augment. Ash you bank unlocks upgrades at the Shrine.'],
-    ['Energy grows', 'Round 1 gives you 1 energy, round 2 gives 2, and so on up to 10. You keep your hand between turns and draw a card each turn.'],
-    ['Three kinds of card', 'Creatures stand in front of you, one at a time. Spells happen once. Artifacts stay in play and keep working; you can hold 3, and a 4th replaces the oldest. Tap a card to pick it up, then tap it again to play it.'],
-    ['Your creature', 'Enemy hits land on your creature first, and anything left over hits you. At the end of your turn, it attacks. Playing a new creature replaces the old one.'],
-    ['Ash, Stoke and Burn', 'Gain 1 Ash whenever your creature dies, or Stoke (2 energy, once per turn). Full Ash: tap Burn for a big hit that ignores Block. Each Burn hits 6 harder than the last.'],
-    ['Scorch', 'Damage over time: at the start of your turn the enemy takes its Scorch as damage, ignoring Block, then Scorch drops by 1.'],
-    ['The enemy', 'The box by the enemy shows its next move. Lunge skips your creature, Wither shrinks its attack, Shatter breaks your oldest artifact.'],
-    ['Keywords', 'Deathrattle: when this creature dies. Lifesteal: damage dealt heals you. Sacrifice: your creature dies (you still get its Ash).'],
+    ['Goal', 'Defeat 8 enemies in a row. You heal fully between fights.'],
+    ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it.'],
+    ['Cards', [['Creature', 'Your one fighter. It takes enemy hits first and attacks at the end of your turn. A new creature replaces the old one.'],
+               ['Spell', 'A one-time effect.'],
+               ['Artifact', 'Stays in play. Max 3; a 4th replaces your oldest.']]],
+    ['Ash and Burn', 'Gain 1 Ash when your creature dies, or Stoke for 2 energy (once per turn). With full Ash, Burn: big damage that ignores Block. Each Burn deals 6 more than the last.'],
+    ['The enemy', [['NEXT', 'The box at the top shows its next move.'],
+                   ['Lunge', 'Skips your creature and hits you.'],
+                   ['Wither', 'Your creature loses attack.'],
+                   ['Shatter', 'Destroys your oldest artifact.']]],
+    ['After each win', 'Take 3 cards from one theme, or 1 Legendary Artifact. Then Empower a card: each ★ boosts its gold numbers by 50%. After fights 2, 4 and 6, choose an Augment for the rest of the run.'],
+    ['Between runs', 'Ash you bank buys permanent upgrades at the Shrine.'],
   ];
+  const body = b => typeof b === 'string' ? `<p>${b}</p>` : `<div class="gl">${b.map(([k, v]) => `<b>${k}</b><span class="dim">${v}</span>`).join('')}</div>`;
   const s = screen(`<h1 class="center" style="font-size:32px">How to Play</h1>
-<div class="scroll howto">${sections.map(([h, p]) => `<h3>${h}</h3><p>${p}</p>`).join('')}
-<h3>Glossary</h3><div class="gl">${GLOSSARY.map(([k, v]) => `<b>${k}</b><span class="dim">${v}</span>`).join('')}</div><div style="height:12px"></div></div>
+<div class="scroll howto">${sections.map(([h, b]) => `<h3>${h}</h3>${body(b)}`).join('')}
+<h3>Keywords</h3><div class="gl">${GLOSSARY.map(([k, v]) => `<b>${k}</b><span class="dim">${v}</span>`).join('')}</div><div style="height:12px"></div></div>
 <div class="stack" style="padding-top:8px"><button class="btn ${thenPath ? 'primary' : ''}" id="go">${thenPath ? 'Begin' : 'Back'}</button></div>`);
   on(s, '#go', () => thenPath ? showPath() : showMenu());
 }

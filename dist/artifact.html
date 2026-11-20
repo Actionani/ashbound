@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Ashbound">
-<meta name="theme-color" content="#0d0c10"><meta name="ashbound-version" content="998ffdab9c">
+<meta name="theme-color" content="#0d0c10"><meta name="ashbound-version" content="7ad26b0647">
 <title>Ashbound</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:wght@700&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
@@ -260,11 +260,11 @@ const Core = (() => {
   // ---------- Cards ----------
   // Numbers in {braces} are the card's power numbers: Empower (stars) scales them by +50% per star.
   const THEMES = {
-    starter: ['Starter', ''], embers: ['Embers', 'Direct damage spells'], bulwark: ['Bulwark', 'Block and sturdy walls'],
-    swarm: ['Swarm', 'Small creatures that die for value'], artifice: ['Artifice', 'Artifacts that keep working'],
+    starter: ['Starter', ''], embers: ['Embers', 'Direct damage'], bulwark: ['Bulwark', 'Block and walls'],
+    swarm: ['Swarm', 'Creatures that die for value'], artifice: ['Artifice', 'Lasting artifacts'],
     scorch: ['Scorch', 'Damage over time'], giants: ['Giants', 'Big creatures and buffs'], pyre: ['Pyre', 'Ash and Burn'],
-    hex: ['Hex', 'Curses that cripple the enemy'], spellbound: ['Spellbound', 'Chain spells for one huge turn'],
-    bloodrite: ['Bloodrite', 'Spend HP for power, drain it back'], echoes: ['Echoes', 'Your used pile comes back'],
+    hex: ['Hex', 'Curses and counters'], spellbound: ['Spellbound', 'Chain spells into one huge turn'],
+    bloodrite: ['Bloodrite', 'Pay HP, drain it back'], echoes: ['Echoes', 'Recycle your used pile'],
     legendary: ['Legendary', ''],
   };
   const C = [];
@@ -490,9 +490,9 @@ const Core = (() => {
     }
     blockedReason(c) {
       const d = card(c.id);
-      if (d.cost > this.energy) return 'Not enough energy. You get 1 more each round.';
-      if (d.needsAlly && !this.allies.player) return 'You need a creature in front of you.';
-      if (c.id === 'turncoat' && !this.allies.enemy) return 'The enemy has no minion.';
+      if (d.cost > this.energy) return 'Not enough energy.';
+      if (d.needsAlly && !this.allies.player) return 'Needs a creature.';
+      if (c.id === 'turncoat' && !this.allies.enemy) return 'No enemy minion.';
       return null;
     }
 
@@ -512,14 +512,14 @@ const Core = (() => {
       this.stokedThisTurn = false;
       this.ev('energy');
       if (this.scorch > 0) {
-        this.ev('info', { text: `Scorch burns for ${this.scorch}.` });
+        this.ev('info', { text: `Scorch deals ${this.scorch}.` });
         this.hitFace('enemy', this.scorch, true);
         if (this.outcome !== 'ongoing') return;
         if (!this.has('eternalEmber')) this.scorch--;
         this.ev('status');
       }
       if (this.rotDmg > 0) {
-        this.ev('info', { text: `Rot gnaws for ${this.rotDmg}.` });
+        this.ev('info', { text: `Rot deals ${this.rotDmg}.` });
         this.hitFace('enemy', this.rotDmg, true);
         if (this.outcome !== 'ongoing') return;
       }
@@ -638,7 +638,7 @@ const Core = (() => {
       if (this.enemyBlock !== 0) { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
       if (this.smothered) {
         this.smothered = false;
-        this.ev('enemyActs', { text: `${this.enemy.name}'s action is countered.` });
+        this.ev('enemyActs', { text: `${this.enemy.name} is countered.` });
         this.ev('status');
       } else if (this.intent) this.execute(this.intent);
       if (this.outcome !== 'ongoing') return;
@@ -697,7 +697,7 @@ const Core = (() => {
         case 'wildfire': if (this.scorch > 0) this.hitFace('enemy', this.scorch + sb, true); this.applyScorch(n(0)); break;
         case 'glimmer': this.draw(1); break;
         case 'ritual': this.energy += 3; this.ev('energy'); break;
-        case 'spellstorm': if (spellsBefore > 0) this.hitFront('enemy', n(0) * spellsBefore + sb); else this.ev('info', { text: 'No other spells this turn.' }); break;
+        case 'spellstorm': if (spellsBefore > 0) this.hitFront('enemy', n(0) * spellsBefore + sb); else this.ev('info', { text: 'No other spells cast this turn.' }); break;
         case 'leechBite': this.hitFront('enemy', n(0) + sb); this.healPlayer(n(0) + sb); break;
         case 'bloodPact': this.loseHP(3); if (this.outcome === 'ongoing') this.draw(2); break;
         case 'crimsonPact': this.loseHP(5); this.hitFront('enemy', n(0) + sb); break;
@@ -733,7 +733,7 @@ const Core = (() => {
     placeArtifact(c) {
       if (this.artifacts.length >= MAX_ARTIFACTS) {
         const old = this.artifacts.shift();
-        this.ev('info', { text: `${card(old.id).name} crumbles to make room.` });
+        this.ev('info', { text: `${card(old.id).name} is replaced.` });
       }
       this.artifacts.push({ uid: c.uid, id: c.id, lvl: c.lvl || 0, charges: card(c.id).charges });
       this.ev('artifacts');
@@ -792,7 +792,7 @@ const Core = (() => {
         dmg = Math.max(0, dmg - this.N(s));
         s.charges--;
         this.ev('artifactFires', { uid: s.uid });
-        if (s.charges <= 0) { this.artifacts.splice(i, 1); this.ev('info', { text: 'The Mirror Shard breaks.' }); }
+        if (s.charges <= 0) { this.artifacts.splice(i, 1); this.ev('info', { text: 'Mirror Shard shatters.' }); }
         this.ev('artifacts');
       }
       if (skipAlly) this.hitFace('player', dmg); else this.hitFront('player', dmg);
@@ -818,7 +818,7 @@ const Core = (() => {
         const back = 10 - this.hp;
         this.hp = 10;
         this.ev('healed', { side: 'player', amount: back });
-        this.ev('info', { text: 'The Phoenix Feather burns. You rise again!' });
+        this.ev('info', { text: 'Phoenix Feather! You survive at 10 HP.' });
       }
       this.checkOutcome();
     }
@@ -891,23 +891,23 @@ const Core = (() => {
           this.enemyAttack(i.amount + this.enrage, true);
           break;
         case 'block':
-          if (this.exposed) this.ev('enemyActs', { text: `${n} tries to brace, but is Exposed.` });
-          else { this.ev('enemyActs', { text: `${n} braces.` }); this.enemyBlock += i.amount; this.ev('block', { side: 'enemy', value: this.enemyBlock }); }
+          if (this.exposed) this.ev('enemyActs', { text: `${n} can't Block (Exposed).` });
+          else { this.ev('enemyActs', { text: `${n} gains ${i.amount} Block.` }); this.enemyBlock += i.amount; this.ev('block', { side: 'enemy', value: this.enemyBlock }); }
           break;
         case 'heal': {
-          this.ev('enemyActs', { text: `${n} heals.` });
+          this.ev('enemyActs', { text: `${n} heals ${i.amount}.` });
           const a = Math.min(i.amount, this.enemyMaxHP - this.enemyHP);
           if (a > 0) { this.enemyHP += a; this.ev('healed', { side: 'enemy', amount: a }); }
           break;
         }
-        case 'enrage': this.ev('enemyActs', { text: `${n} grows angrier.` }); this.enrage += i.amount; this.ev('status'); break;
+        case 'enrage': this.ev('enemyActs', { text: `${n} enrages: attacks +${i.amount}.` }); this.enrage += i.amount; this.ev('status'); break;
         case 'wither':
-          this.ev('enemyActs', { text: `${n} withers your creature.` });
+          this.ev('enemyActs', { text: `${n} withers your creature: −${i.amount} attack.` });
           if (this.allies.player) { this.allies.player.power = Math.max(0, this.allies.player.power - i.amount); this.ev('allyChanged', { side: 'player' }); }
           break;
         case 'shatter':
-          if (!this.artifacts.length) this.ev('enemyActs', { text: `${n} swings at nothing.` });
-          else { const old = this.artifacts.shift(); this.ev('enemyActs', { text: `${n} shatters your ${card(old.id).name}!` }); this.ev('artifacts'); }
+          if (!this.artifacts.length) this.ev('enemyActs', { text: `${n} finds no artifact to destroy.` });
+          else { const old = this.artifacts.shift(); this.ev('enemyActs', { text: `${n} destroys your ${card(old.id).name}!` }); this.ev('artifacts'); }
           break;
         case 'summon':
           if (!this.allies.enemy && i.minion) { this.ev('enemyActs', { text: `${n} summons a ${MINIONS[i.minion][0]}.` }); this.summonMinion(i.minion); }
@@ -917,19 +917,19 @@ const Core = (() => {
     intentText() {
       const i = this.intent;
       if (!i) return ['', ''];
-      if (this.smothered) return ['Countered', 'Its next action fails'];
+      if (this.smothered) return ['Countered', 'Skips its next action'];
       const w = this.weaken > 0 ? ` (−${this.weaken})` : '';
       switch (i.kind) {
         case 'attack': { const n = Math.max(0, i.amount + this.enrage - this.weaken); return [i.hits > 1 ? `Attack ${n}×${i.hits}` : `Attack ${n}`, 'Hits your creature first' + w]; }
         case 'lunge': return [`Lunge ${Math.max(0, i.amount + this.enrage - this.weaken)}`, 'Skips your creature' + w];
-        case 'block': return [`Block ${i.amount}`, this.exposed ? 'Blocked by Expose' : 'Shields itself'];
-        case 'heal': return [`Heal ${i.amount}`, 'Restores its HP'];
-        case 'enrage': return [`Enrage +${i.amount}`, 'Its attacks get stronger'];
-        case 'wither': return [`Wither ${i.amount}`, "Your creature loses attack"];
-        case 'shatter': return ['Shatter', this.artifacts.length ? 'Breaks your oldest artifact' : 'No artifact to break'];
+        case 'block': return [`Block ${i.amount}`, this.exposed ? "Can't Block (Exposed)" : 'Gains Block'];
+        case 'heal': return [`Heal ${i.amount}`, 'Heals itself'];
+        case 'enrage': return [`Enrage +${i.amount}`, 'Its attacks grow for good'];
+        case 'wither': return [`Wither ${i.amount}`, 'Your creature loses attack'];
+        case 'shatter': return ['Shatter', this.artifacts.length ? 'Destroys your oldest artifact' : 'You have no artifact'];
         case 'summon': {
           const [name, bp, bh] = MINIONS[i.minion];
-          return ['Summon', `${name} ${bp + Math.floor((this.round - 1) / 3)}/${bh + Math.floor((this.round - 1) / 2)}`];
+          return ['Summon', `Summons a ${name} ${bp + Math.floor((this.round - 1) / 3)}/${bh + Math.floor((this.round - 1) / 2)}`];
         }
       }
       return ['', ''];
@@ -953,17 +953,17 @@ const Core = (() => {
 
   // ---------- Meta (permanent unlocks) ----------
   const UNLOCKS = [
-    ['vitality1', 'Vitality I', 'Start every run with +3 max HP.', 40, null],
-    ['themeGiants', 'Giants Bundles', 'Giants bundles can be offered: big creatures and buffs.', 50, null],
-    ['hotterBurn', 'Hotter Burn I', 'Burn deals 2 more damage.', 60, null],
-    ['themeHex', 'Hex Bundles', 'Hex bundles can be offered: Weaken, Rot, Smother and more.', 70, null],
-    ['widerChoice', 'Wider Choice', 'See 4 card bundles after each fight instead of 3.', 80, null],
-    ['vitality2', 'Vitality II', 'Start every run with +3 max HP.', 100, 'vitality1'],
-    ['themePyre', 'Pyre Bundles', 'Pyre bundles can be offered: Ash and Burn.', 90, null],
-    ['treasureHunter', 'Treasure Hunter', 'See 4 augments instead of 3.', 110, null],
-    ['headStart', 'Head Start', 'Start every run with a random augment.', 150, null],
-    ['hotterBurn2', 'Hotter Burn II', 'Burn deals 2 more damage.', 120, 'hotterBurn'],
-    ['vitality3', 'Vitality III', 'Start every run with +3 max HP.', 160, 'vitality2'],
+    ['vitality1', 'Vitality I', '+3 max HP.', 40, null],
+    ['themeGiants', 'Giants', 'Adds the Giants theme: big creatures and buffs.', 50, null],
+    ['hotterBurn', 'Hotter Burn I', 'Burn deals +2 damage.', 60, null],
+    ['themeHex', 'Hex', 'Adds the Hex theme: curses and counters.', 70, null],
+    ['widerChoice', 'Wider Choice', 'Choose from 4 card bundles instead of 3.', 80, null],
+    ['vitality2', 'Vitality II', '+3 max HP.', 100, 'vitality1'],
+    ['themePyre', 'Pyre', 'Adds the Pyre theme: Ash and Burn.', 90, null],
+    ['treasureHunter', 'Treasure Hunter', 'Choose from 4 Augments instead of 3.', 110, null],
+    ['headStart', 'Head Start', 'Start each run with a random Augment.', 150, null],
+    ['hotterBurn2', 'Hotter Burn II', 'Burn deals +2 damage.', 120, 'hotterBurn'],
+    ['vitality3', 'Vitality III', '+3 max HP.', 160, 'vitality2'],
   ].map(([id, name, detail, cost, requires]) => ({ id, name, detail, cost, requires }));
 
   const newMeta = () => ({ ash: 0, lifetimeAsh: 0, unlocked: [], runs: 0, wins: 0, bestFight: 0, bestTurn: 0, soundOn: true, seenTutorial: false });
@@ -1061,19 +1061,16 @@ const Core = (() => {
   };
 
   const GLOSSARY = [
-    ['Energy', 'Round 1 gives 1, round 2 gives 2, up to 10.'],
-    ['Creature', 'One at a time, in front of you. Takes hits first. Attacks at end of turn.'],
-    ['Spell', 'Happens once, then goes to your used pile.'],
-    ['Artifact', 'Stays in play. Hold up to 3; a 4th replaces the oldest.'],
-    ['Block', 'Stops damage until your next turn.'],
-    ['Scorch', 'Start of your turn: the enemy takes damage equal to its Scorch, then Scorch drops by 1.'],
-    ['Ash', 'Gain 1 when your creature dies, or Stoke. Full Ash lets you Burn.'],
-    ['Burn', 'A big hit that ignores Block. Grows by 6 each time you Burn in a fight.'],
-    ['Stoke', 'Pay 2 energy: Gain 1 Ash. Once per turn.'],
-    ['Deathrattle', 'Happens when this creature dies.'],
+    ['Block', 'Absorbs damage. Lasts until your next turn.'],
+    ['Ash', 'Gain 1 when your creature dies. Fill it to Burn.'],
+    ['Stoke', 'Pay 2 energy: gain 1 Ash. Once per turn.'],
+    ['Burn', 'Spend full Ash: deal big damage that ignores Block. Each Burn deals 6 more.'],
+    ['Scorch', 'Start of your turn: deals its amount to the enemy, then drops by 1.'],
+    ['Deathrattle', 'Triggers when this creature dies.'],
     ['Lifesteal', 'Damage dealt also heals you.'],
-    ['Sacrifice', 'Your creature dies (you still gain its Ash).'],
-    ['Empower', 'After each win, star a card: its gold numbers grow 50% per star (max 3).'],
+    ['Sacrifice', 'Destroy your creature. You still gain its Ash.'],
+    ['Counter', 'The enemy skips its next action.'],
+    ['Empower ★', 'Boosts a card’s gold numbers by 50%. Max ★★★.'],
   ];
 
   return { RNG, CARDS, card, cardsOf, THEMES, MAX_STARS, scale, canEmpower, stats, textParts, cardText, STARTER, AUGMENTS, AUGMENT_IDS, ENEMIES, MINIONS, TUNING, Battle,
@@ -1327,17 +1324,17 @@ function showPath() {
     return `<span class="dot ${f < r.fight ? 'done' : ''} ${f === r.fight ? 'cur' : ''} ${AUGMENT_AFTER.includes(f) ? 'aug' : ''}"></span>`;
   }).join('');
   const s = screen(`<h1 class="center" style="font-size:30px">${Run.isFinal(r) ? 'The Final Pyre' : `Fight ${r.fight} of ${TOTAL_FIGHTS}`}</h1>
-<div class="track">${dots}</div><div class="center faint small" style="font-weight:700">Gold dots: an augment after that fight</div>
+<div class="track">${dots}</div><div class="center faint small" style="font-weight:700">Gold dot: Augment after that fight</div>
 <div class="foe">${sigil(Run.currentEnemy(r), col, { eye: true, glow: e.tier >= 3, lw: 1.8 })}
 <div><div class="tierline">${tier}</div><h2 style="font-size:30px">${esc(e.name)}</h2><div class="dim" style="font:600 16px var(--title)">${esc(e.title)}</div></div>
 <button class="btn primary" id="fight" style="min-width:220px;min-height:54px;font-size:19px">Fight</button></div>
-<div class="row between"><div class="row" style="font-weight:700"><span style="width:18px">${ICON.heart(COL.blood)}</span>${r.maxHP} HP · full heal each fight</div>
+<div class="row between"><div class="row" style="font-weight:700"><span style="width:18px">${ICON.heart(COL.blood)}</span>${r.maxHP} HP · full heal between fights</div>
 <button class="btn" id="deck" style="min-height:38px;font-size:14px">Deck ${r.deck.length}</button></div>
 <div class="label" style="margin-top:8px">Augments</div>
 <div class="chips" style="min-height:40px;margin-top:4px">${r.augments.length ? r.augments.map(a => `<div class="medal" data-a="${a}">${sigil(a, COL.gold, { ring: false, lw: 3 })}</div>`).join('') : '<span class="faint small" style="font-weight:700">None yet</span>'}</div>
 <button class="btn quiet" id="quit" style="margin:4px auto 0">Save & Quit</button>`);
   on(s, '#fight', () => startBattle());
-  on(s, '#deck', () => showDeck(Run.deckCards(r), 'Your Deck', 'Gold numbers have grown from Empower'));
+  on(s, '#deck', () => showDeck(Run.deckCards(r), 'Your Deck', 'Gold numbers are Empowered'));
   on(s, '.medal', el => { const a = AUGMENTS[el.dataset.a]; toast(`${a[0]}: ${a[1]}`, COL.gold); });
   on(s, '#quit', () => { Store.save(); showMenu(); });
 }
@@ -1373,10 +1370,10 @@ function startBattle() {
   $('#end').onclick = () => { Sound.play('tap'); doEndTurn(); };
   $('#stoke').onclick = () => { Sound.play('tap'); doStoke(); };
   $('#burn').onclick = () => { Sound.play('tap'); doBurn(); };
-  $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Shown sorted, not in draw order');
+  $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Sorted, not in draw order');
   $('#pu').onclick = () => showDeck(B.discard, 'Used Pile');
   s.addEventListener('click', e => { if (!e.target.closest('.card') && view.sel != null) { view.sel = null; renderHand(B.snapshot()); } });
-  $('#cmd').onclick = () => { const [t, d] = B.intentText(); toast(`${e.name}: ${B.enemyHP}/${B.enemyMaxHP} HP. Next: ${t} (${d}).`, COL.blood); };
+  $('#cmd').onclick = () => { const [t, d] = B.intentText(); toast(`${e.name} · ${B.enemyHP}/${B.enemyMaxHP} HP · Next: ${t}. ${d}.`, COL.blood); };
   render(B.snapshot());
   B.start();
   play(B.takeEvents());
@@ -1425,7 +1422,7 @@ function render(sn) {
   const burn = $('#burn'); burn.className = 'side-btn ' + (sn.canBurn ? 'ready' : 'off');
   $('#burnl').textContent = sn.canBurn ? `BURN ${sn.burnDamage}` : 'BURN';
   $('#stoke').className = 'side-btn ' + (sn.canStoke ? '' : 'off');
-  $('#stokecap').textContent = `${sn.stokePrice} energy → 1 Ash`;
+  $('#stokecap').textContent = `${sn.stokePrice} energy: +1 Ash`;
   $('#arts').innerHTML = [...Array(MAX_ARTIFACTS)].map((_, i) => {
     const a = sn.artifacts[i];
     return a ? `<div class="art-slot has" data-uid="${a.uid}" data-id="${a.id}" data-lvl="${a.lvl || 0}">${sigil(a.id, COL.gold, { ring: false, lw: 3 })}${a.charges > 0 ? `<span class="ch">${a.charges}</span>` : ''}</div>` : '<div class="art-slot"></div>';
@@ -1463,12 +1460,12 @@ function tapCard(uid, el) {
 function doEndTurn() { if (view.busy || view.done) return; view.sel = null; buzz(15); B.endTurn(); play(B.takeEvents()); }
 function doStoke() {
   if (view.busy || view.done) return;
-  if (!B.canStoke) { toast(B.stokedThisTurn ? 'You already stoked this turn.' : B.ash >= B.ashNeeded ? 'Your Ash is full. Burn it!' : `Stoke costs ${B.stokePrice} energy.`, COL.ash); return; }
+  if (!B.canStoke) { toast(B.stokedThisTurn ? 'Already stoked this turn.' : B.ash >= B.ashNeeded ? 'Ash is full. Burn!' : `Stoke costs ${B.stokePrice} energy.`, COL.ash); return; }
   B.stoke(); play(B.takeEvents());
 }
 function doBurn() {
   if (view.busy || view.done) return;
-  if (!B.canBurn) { toast(`Burn is ready at ${B.ashNeeded} Ash. Gain Ash when your creature dies, or Stoke.`, COL.ash); return; }
+  if (!B.canBurn) { toast(`Burn needs ${B.ashNeeded} Ash. Gain Ash when your creature dies, or Stoke.`, COL.ash); return; }
   buzz(40); B.useBurn(); play(B.takeEvents());
 }
 const DUR = { allyIn: 260, allyAttacks: 220, allyHit: 200, allyChanged: 100, allyDied: 280, faceHit: 240, block: 60, healed: 150, ash: 100,
@@ -1541,10 +1538,10 @@ function showReward() {
   const r = G.run; let chosen = null;
   const bundles = r.pendingBundles.map((b, i) => `<div class="panel" data-i="${i}"><div class="row between"><b style="font:700 15px var(--body)">${THEMES[b.theme][0]}</b><span class="dim small">${THEMES[b.theme][1]}</span></div>
 <div class="cards">${b.cards.map(id => cardHTML(id, { cls: 'big' })).join('')}</div></div>`).join('');
-  const art = r.pendingArtifact ? `<div class="panel gold" data-i="-1"><div class="label" style="color:var(--gold)">OR ONE LEGENDARY ARTIFACT</div>
-<div class="row" style="align-items:flex-start;margin-top:8px">${cardHTML(r.pendingArtifact, { cls: 'big' })}<div class="small" style="font-weight:600">One card instead of three. Artifacts stay in play once cast.<br><br><b>${esc(card(r.pendingArtifact).name)}:</b> ${esc(card(r.pendingArtifact).text)}</div></div></div>` : '';
+  const art = r.pendingArtifact ? `<div class="panel gold" data-i="-1"><div class="label" style="color:var(--gold)">OR A LEGENDARY ARTIFACT</div>
+<div class="row" style="align-items:flex-start;margin-top:8px">${cardHTML(r.pendingArtifact, { cls: 'big' })}<div class="small" style="font-weight:600">1 powerful card instead of 3.<br><br><b>${esc(card(r.pendingArtifact).name)}:</b> ${esc(cardText(r.pendingArtifact, 0))}</div></div></div>` : '';
   const s = screen(`<h1 class="center" style="color:var(--ember);font-size:34px">Victory</h1>
-<div class="center dim small" style="font-weight:700;margin:4px 0 8px">Take a bundle of 3 cards, or one Legendary Artifact.</div>
+<div class="center dim small" style="font-weight:700;margin:4px 0 8px">Take 3 cards, or 1 Legendary Artifact.</div>
 <div class="scroll"><div class="list">${bundles}${art}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn primary" id="take" disabled>Take Bundle</button><button class="btn quiet" id="skip">Skip</button></div>`);
   on(s, '.panel', el => {
@@ -1571,8 +1568,8 @@ function showEmpower() {
   const seen = new Set(), list = opts.filter(i => { const k = r.deck[i] + ':' + r.stars[i]; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => card(r.deck[a]).cost - card(r.deck[b]).cost || card(r.deck[a]).name.localeCompare(card(r.deck[b]).name) || r.stars[b] - r.stars[a]);
   const s = screen(`<h1 class="center" style="color:var(--gold);font-size:30px">Empower a Card</h1>
-<div class="center dim small" style="font-weight:700;margin:4px 0 2px">Its gold numbers grow 50% per ★ (max ${MAX_STARS}).${r.empowersLeft > 1 ? ` ${r.empowersLeft} left.` : ''}</div>
-<div class="emp-prev" id="prev"><span class="faint small" style="font-weight:700">Tap a card to preview</span></div>
+<div class="center dim small" style="font-weight:700;margin:4px 0 2px">Each ★ boosts its gold numbers by 50%. Max ${'★'.repeat(MAX_STARS)}.${r.empowersLeft > 1 ? ` ${r.empowersLeft} left.` : ''}</div>
+<div class="emp-prev" id="prev"><span class="faint small" style="font-weight:700">Tap a card to preview it</span></div>
 <div class="scroll"><div class="grid emp-pick">${list.map(i => cardHTML(r.deck[i], { lvl: r.stars[i], attr: `data-i="${i}"` })).join('')}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn gold" id="take" disabled>Empower</button><button class="btn quiet" id="skip">Skip</button></div>`);
   on(s, '.emp-pick .card', el => {
@@ -1588,7 +1585,7 @@ function showEmpower() {
 function showAugment() {
   const r = G.run; let chosen = null;
   const s = screen(`<div class="center" style="padding-top:6px"><div style="width:96px;margin:0 auto;animation:spin 40s linear infinite">${sigil('augment-choice', COL.gold, { glow: true, lw: 1.8 })}</div>
-<h1 style="color:var(--gold);font-size:30px;margin-top:6px">Choose an Augment</h1><div class="dim small" style="font-weight:700;margin:4px 0 10px">It lasts for the rest of this run.</div></div>
+<h1 style="color:var(--gold);font-size:30px;margin-top:6px">Choose an Augment</h1><div class="dim small" style="font-weight:700;margin:4px 0 10px">Lasts for the rest of this run.</div></div>
 <div class="scroll"><div class="list">${r.pendingAugments.map(a => `<div class="panel gold aug" data-a="${a}"><div class="medal">${sigil(a, COL.gold, { ring: false, lw: 3 })}</div>
 <div><b>${AUGMENTS[a][0]}</b><span style="font-weight:600;font-size:14px">${AUGMENTS[a][1]}</span></div></div>`).join('')}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn gold" id="take" disabled>Take Augment</button></div>`);
@@ -1626,18 +1623,23 @@ ${owned ? '<span class="owned">Offered</span>' : `<button class="btn ${Meta.canB
 }
 function showHowTo(thenPath) {
   const sections = [
-    ['The run', 'Beat 8 foes in a row; you fully heal between fights. After each win: take 3 cards or a Legendary Artifact, then Empower a card (★ grows its gold numbers 50%). After fights 2, 4 and 6, pick an Augment. Ash you bank unlocks upgrades at the Shrine.'],
-    ['Energy grows', 'Round 1 gives you 1 energy, round 2 gives 2, and so on up to 10. You keep your hand between turns and draw a card each turn.'],
-    ['Three kinds of card', 'Creatures stand in front of you, one at a time. Spells happen once. Artifacts stay in play and keep working; you can hold 3, and a 4th replaces the oldest. Tap a card to pick it up, then tap it again to play it.'],
-    ['Your creature', 'Enemy hits land on your creature first, and anything left over hits you. At the end of your turn, it attacks. Playing a new creature replaces the old one.'],
-    ['Ash, Stoke and Burn', 'Gain 1 Ash whenever your creature dies, or Stoke (2 energy, once per turn). Full Ash: tap Burn for a big hit that ignores Block. Each Burn hits 6 harder than the last.'],
-    ['Scorch', 'Damage over time: at the start of your turn the enemy takes its Scorch as damage, ignoring Block, then Scorch drops by 1.'],
-    ['The enemy', 'The box by the enemy shows its next move. Lunge skips your creature, Wither shrinks its attack, Shatter breaks your oldest artifact.'],
-    ['Keywords', 'Deathrattle: when this creature dies. Lifesteal: damage dealt heals you. Sacrifice: your creature dies (you still get its Ash).'],
+    ['Goal', 'Defeat 8 enemies in a row. You heal fully between fights.'],
+    ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it.'],
+    ['Cards', [['Creature', 'Your one fighter. It takes enemy hits first and attacks at the end of your turn. A new creature replaces the old one.'],
+               ['Spell', 'A one-time effect.'],
+               ['Artifact', 'Stays in play. Max 3; a 4th replaces your oldest.']]],
+    ['Ash and Burn', 'Gain 1 Ash when your creature dies, or Stoke for 2 energy (once per turn). With full Ash, Burn: big damage that ignores Block. Each Burn deals 6 more than the last.'],
+    ['The enemy', [['NEXT', 'The box at the top shows its next move.'],
+                   ['Lunge', 'Skips your creature and hits you.'],
+                   ['Wither', 'Your creature loses attack.'],
+                   ['Shatter', 'Destroys your oldest artifact.']]],
+    ['After each win', 'Take 3 cards from one theme, or 1 Legendary Artifact. Then Empower a card: each ★ boosts its gold numbers by 50%. After fights 2, 4 and 6, choose an Augment for the rest of the run.'],
+    ['Between runs', 'Ash you bank buys permanent upgrades at the Shrine.'],
   ];
+  const body = b => typeof b === 'string' ? `<p>${b}</p>` : `<div class="gl">${b.map(([k, v]) => `<b>${k}</b><span class="dim">${v}</span>`).join('')}</div>`;
   const s = screen(`<h1 class="center" style="font-size:32px">How to Play</h1>
-<div class="scroll howto">${sections.map(([h, p]) => `<h3>${h}</h3><p>${p}</p>`).join('')}
-<h3>Glossary</h3><div class="gl">${GLOSSARY.map(([k, v]) => `<b>${k}</b><span class="dim">${v}</span>`).join('')}</div><div style="height:12px"></div></div>
+<div class="scroll howto">${sections.map(([h, b]) => `<h3>${h}</h3>${body(b)}`).join('')}
+<h3>Keywords</h3><div class="gl">${GLOSSARY.map(([k, v]) => `<b>${k}</b><span class="dim">${v}</span>`).join('')}</div><div style="height:12px"></div></div>
 <div class="stack" style="padding-top:8px"><button class="btn ${thenPath ? 'primary' : ''}" id="go">${thenPath ? 'Begin' : 'Back'}</button></div>`);
   on(s, '#go', () => thenPath ? showPath() : showMenu());
 }
