@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Ashbound">
+<meta name="theme-color" content="#0d0c10"><meta name="ashbound-version" content="1704c6ad88">
+<title>Ashbound</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:wght@700&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: a dark, hushed card duel lit by embers; fine ink lines, few hues.
+IDEA: an ink-drawn grimoire table at night; every creature and card is a hand-inked sigil.
+PICTURE: the battle board itself: enemy sigil above, your creature below, cards fanned at the bottom.
+COLOUR and TYPE: ink black ground, paper white lines, ember orange accent, blood for the enemy, gold for artifacts. Cormorant Garamond titles, Barlow body, Barlow Condensed numbers.
+LAYOUT: one full-height phone column; nothing scrolls during battle; menus scroll inside panels.
+*/
+:root {
+  color-scheme: dark;
+  --bg: #0d0c10; --panel: #17151c; --panel2: #201d26;
+  --paper: #eae3d2; --dim: rgba(234,227,210,.58); --faint: rgba(234,227,210,.2);
+  --ember: #ff7a3a; --ember2: #c2410c; --blood: #e0526a; --gold: #e8c26a; --frost: #9ec5e8; --ash: #9e99a6; --vow: #b894f4; --heal: #8dd996;
+  --title: 'Cormorant Garamond', 'Baskerville', Georgia, serif;
+  --body: 'Barlow', 'Avenir Next', system-ui, sans-serif;
+  --num: 'Barlow Condensed', 'Avenir Next Condensed', system-ui, sans-serif;
+  --cw: min(76px, calc((100vw - 18px) / 5.15));
+  --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
+}
+:root[data-theme=light], :root[data-theme=dark] { color-scheme: dark; }
+* { box-sizing: border-box; min-width: 0; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--paper); font: 16px/1.4 var(--body); overflow: hidden;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body::before { content: ''; position: fixed; inset: auto -20% -40% -20%; height: 70%; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 100%, rgba(194,65,12,.22), transparent 65%); }
+#embers { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.mote { position: absolute; bottom: -6px; width: 3px; height: 3px; border-radius: 50%; background: var(--ember);
+  animation: rise linear forwards; opacity: 0; }
+@keyframes rise { 0% { transform: translate(0,0); opacity: 0 } 10% { opacity: .8 } 100% { transform: translate(var(--dx), -100vh); opacity: 0 } }
+#app { position: relative; z-index: 1; height: 100dvh; display: flex; flex-direction: column;
+  padding: calc(var(--st) + 6px) 10px calc(var(--sb) + 8px); max-width: 520px; margin: 0 auto; }
+.screen { flex: 1; display: flex; flex-direction: column; min-height: 0; animation: fadein .3s ease; }
+@keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
+h1, h2, h3 { font-family: var(--title); font-weight: 700; margin: 0; line-height: 1.05; text-wrap: balance; }
+.center { text-align: center; }
+.dim { color: var(--dim); } .faint { color: var(--faint); }
+.small { font-size: 13px; }
+.label { font: 700 11px var(--body); letter-spacing: .02em; color: var(--dim); }
+.scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; min-height: 0; }
+.grow { flex: 1; }
+
+/* Buttons */
+button { font: inherit; color: inherit; }
+.btn { display: block; min-height: 46px; padding: 0 20px; border-radius: 14px; border: 1.4px solid var(--faint);
+  background: var(--panel); color: var(--paper); font: 700 16px var(--body); cursor: pointer; transition: transform .08s; }
+.btn:active { transform: scale(.96); }
+.btn.primary { border-color: var(--ember); color: var(--ember); background: var(--panel2); }
+.btn.danger { border-color: var(--blood); color: var(--blood); }
+.btn.gold { border-color: var(--gold); color: var(--gold); background: var(--panel2); }
+.btn.quiet { border-color: transparent; background: none; color: var(--dim); font-size: 14px; min-height: 40px; }
+.btn[disabled] { opacity: .4; pointer-events: none; }
+.btn:focus-visible, .card:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.stack { display: flex; flex-direction: column; gap: 12px; align-items: stretch; width: min(300px, 100%); margin: 0 auto; }
+
+/* Menu */
+.menu-hero { position: relative; flex: 1; display: grid; place-items: center; min-height: 260px; }
+.menu-hero svg { position: absolute; width: min(78vw, 380px); height: auto; opacity: .55; animation: spin 120s linear infinite; }
+.menu-hero .t { position: relative; text-align: center; }
+.menu-hero h1 { font-size: clamp(44px, 13vw, 60px); letter-spacing: .02em; }
+@keyframes spin { to { transform: rotate(360deg) } }
+.foot { text-align: center; font: 700 13px var(--body); color: var(--ash); padding-top: 14px; }
+
+/* Path */
+.track { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 14px 8px 4px; }
+.track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--faint); }
+.dot { position: relative; width: 10px; height: 10px; border-radius: 50%; background: var(--faint); }
+.dot.done { background: var(--ember); } .dot.cur { width: 16px; height: 16px; background: var(--bg); border: 2px solid var(--ember); animation: pulse 1.2s ease-in-out infinite; }
+.dot.aug::after { content: ''; position: absolute; left: 50%; top: -10px; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+@keyframes pulse { 50% { transform: scale(1.3) } }
+.foe { flex: 1; display: grid; place-items: center; text-align: center; gap: 6px; padding: 8px 0; }
+.foe svg { width: min(42vw, 170px); height: auto; animation: spin 30s linear infinite; }
+.tierline { font: 700 11px var(--body); color: var(--blood); }
+.row { display: flex; align-items: center; gap: 10px; }
+.between { justify-content: space-between; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.medal { width: 38px; height: 38px; border-radius: 50%; border: 1.4px solid rgba(232,194,106,.7); background: var(--panel2); display: grid; place-items: center; cursor: pointer; }
+.medal svg { width: 26px; height: 26px; }
+
+/* Cards */
+.card { position: relative; width: var(--cw); height: calc(var(--cw) * 1.48); border-radius: 9px; background: var(--panel);
+  border: 1.5px solid var(--c, var(--paper)); padding: 4px; display: flex; flex-direction: column; align-items: center;
+  transition: transform .16s ease, opacity .2s; cursor: pointer; flex: none; overflow: hidden; }
+.card::before { content: ''; position: absolute; left: 3px; right: 3px; top: 3px; height: 30%; border-radius: 6px; background: var(--c); opacity: .1; }
+.card .cost { position: absolute; left: 3px; top: 3px; width: calc(var(--cw) * .27); height: calc(var(--cw) * .27); border-radius: 50%;
+  background: var(--ember); color: var(--bg); font: 700 calc(var(--cw) * .2) var(--num); display: grid; place-items: center; }
+.card .nm { position: relative; font: 700 calc(var(--cw) * .135) var(--title); line-height: 1.02; text-align: center; height: 2.1em;
+  display: flex; align-items: center; justify-content: center; padding-left: calc(var(--cw) * .22); width: 100%; }
+.card .art { width: 44%; height: auto; margin: 1px 0; opacity: .9; }
+.card .ty { font: 700 calc(var(--cw) * .082) var(--body); color: var(--c); opacity: .85; white-space: nowrap; }
+.card .tx { font: 600 calc(var(--cw) * .112) var(--body); line-height: 1.12; text-align: center; margin-top: 2px; }
+.card.cr .tx { font-size: calc(var(--cw) * .095); }
+.card .p, .card .h { position: absolute; bottom: 3px; width: calc(var(--cw) * .25); height: calc(var(--cw) * .25); border-radius: 50%;
+  display: grid; place-items: center; font: 700 calc(var(--cw) * .19) var(--num); color: var(--bg); }
+.card .p { left: 3px; background: var(--ember); } .card .h { right: 3px; background: var(--paper); }
+.card.big { --cw: min(118px, calc((100vw - 52px) / 3)); }
+.card.sel { transform: translateY(-20px); box-shadow: 0 0 0 2px var(--ember), 0 8px 24px rgba(255,122,58,.35); z-index: 50; }
+.card.off { opacity: .5; }
+.card.picked { box-shadow: 0 0 0 2.5px var(--gold); }
+
+/* Battle */
+.bt { flex: 1; display: grid; grid-template-rows: auto auto 1fr auto auto auto; min-height: 0; gap: 4px; }
+.etop { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
+.ename { text-align: center; }
+.ename h2 { font-size: 22px; }
+.round { text-align: center; }
+.round b { display: block; font: 700 30px/1 var(--num); }
+.intent { border: 1.3px solid rgba(224,82,106,.6); border-radius: 12px; background: var(--panel); padding: 5px 6px; text-align: center; }
+.intent b { display: block; font: 700 16px var(--body); }
+.intent span { font-size: 10.5px; color: var(--dim); }
+.cmd { display: grid; place-items: center; position: relative; }
+.cmd svg { width: 82px; height: 82px; animation: spin 40s linear infinite; }
+.hpbar { position: relative; width: 160px; height: 16px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--faint); margin: 4px auto 0; overflow: hidden; }
+.hpbar i { position: absolute; inset: 1px auto 1px 1px; border-radius: 7px; background: var(--blood); transition: width .25s; }
+.hpbar b { position: relative; display: block; text-align: center; font: 700 12px/14px var(--num); }
+.estatus { text-align: center; font: 700 11px var(--body); color: var(--vow); min-height: 15px; }
+.eblock { position: absolute; left: calc(50% - 112px); bottom: 10px; }
+.board { display: grid; grid-template-rows: 1fr 1px 1fr auto; gap: 6px; min-height: 0; }
+.lane { display: grid; grid-template-columns: 1fr minmax(0, 150px) 1fr; align-items: center; gap: 6px; min-height: 0; }
+.slot { position: relative; height: 100%; min-height: 104px; max-height: 128px; border: 1.3px dashed var(--faint); border-radius: 14px;
+  display: grid; place-items: center; }
+.slot.enemy { border-color: rgba(224,82,106,.25); }
+.slot .empty { font: 700 10px var(--body); color: var(--faint); }
+.ally { position: absolute; inset: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ally svg { width: 58px; height: 58px; animation: breathe 2.6s ease-in-out infinite; }
+.ally .an { font: 700 13px var(--title); margin-top: 2px; }
+.ally .fresh { position: absolute; top: 0; font: 700 8px var(--body); color: var(--dim); }
+.ally .p, .ally .h { position: absolute; bottom: 0; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  font: 700 17px var(--num); color: var(--bg); border: 1.5px solid var(--bg); }
+.ally .p { left: 0; background: var(--ember); } .ally .h { right: 0; background: var(--paper); }
+.ally.enemy .p { background: var(--blood); }
+@keyframes breathe { 50% { transform: scale(1.05) } }
+.divider { background: var(--faint); margin: 0 20px; }
+.side-btn { justify-self: center; display: grid; place-items: center; width: 70px; height: 70px; border-radius: 50%;
+  border: 2px solid var(--faint); background: var(--panel); text-align: center; cursor: pointer; padding: 0; transition: transform .08s; }
+.side-btn:active { transform: scale(.94); }
+.side-btn b { display: block; font: 700 10px var(--body); }
+.side-btn svg { width: 22px; height: 22px; margin-bottom: -2px; }
+.side-btn.off { opacity: .42; }
+.side-btn.ready { border-color: var(--ember); background: rgba(194,65,12,.3); box-shadow: 0 0 16px rgba(255,122,58,.55); animation: pulse 1s ease-in-out infinite; }
+.side-cap { text-align: center; font: 700 8.5px var(--body); color: var(--dim); margin-top: 3px; }
+.pips { display: flex; gap: 5px; justify-content: center; margin-bottom: 4px; }
+.pips i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ash); }
+.pips i.on { background: var(--ember); border-color: var(--ember); }
+.arts { display: flex; justify-content: center; gap: 12px; padding: 2px 0; }
+.art-slot { width: 42px; height: 42px; border-radius: 50%; border: 1.2px solid rgba(232,194,106,.18); display: grid; place-items: center; position: relative; }
+.art-slot.has { border-color: rgba(232,194,106,.85); background: var(--panel2); cursor: pointer; }
+.art-slot svg { width: 30px; height: 30px; }
+.art-slot .ch { position: absolute; right: -4px; top: -4px; width: 17px; height: 17px; border-radius: 50%; background: var(--gold); color: var(--bg); font: 700 11px/17px var(--num); text-align: center; }
+.status { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 10px; padding: 4px 2px; }
+.stat { display: flex; align-items: center; gap: 4px; font: 700 20px var(--num); }
+.stat svg { width: 18px; height: 18px; }
+.stat.low { color: var(--blood); }
+.energy { color: var(--ember); justify-self: center; }
+.endturn { min-height: 42px; padding: 0 16px; }
+.piles { display: flex; justify-content: space-between; font: 700 10px var(--body); color: var(--dim); padding: 0 4px; }
+.piles button { background: none; border: 0; color: inherit; font: inherit; padding: 4px; cursor: pointer; }
+.hint { color: var(--ember); }
+.hand { position: relative; height: calc(var(--cw) * 1.48 + 24px); display: flex; justify-content: center; align-items: flex-end; padding-bottom: 2px; }
+.hand .card { margin-left: var(--ov, 4px); }
+.hand .card:first-child { margin-left: 0; }
+.hand .card.new { animation: deal .25s ease; }
+@keyframes deal { from { transform: translate(-40px, 30px); opacity: 0 } }
+.shake { animation: shake .3s; }
+@keyframes shake { 20% { transform: translateX(-6px) } 40% { transform: translateX(6px) } 60% { transform: translateX(-4px) } 80% { transform: translateX(3px) } }
+.lunge-up { animation: lungeUp .2s; } .lunge-down { animation: lungeDown .2s; }
+@keyframes lungeUp { 50% { transform: translateY(-26px) } } @keyframes lungeDown { 50% { transform: translateY(26px) } }
+.pop { animation: pop .25s; } @keyframes pop { 50% { transform: scale(1.3) } }
+.die { animation: die .26s forwards; } @keyframes die { to { transform: scale(.3); opacity: 0 } }
+.float { position: fixed; z-index: 90; font: 700 24px var(--num); pointer-events: none; transform: translate(-50%, -50%); animation: floatUp .8s ease-out forwards; text-shadow: 0 2px 8px #000; }
+@keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.7) } 15% { opacity: 1; transform: translate(-50%, -60%) scale(1.1) } 100% { opacity: 0; transform: translate(-50%, -160%) } }
+.flash { position: fixed; inset: 0; z-index: 80; pointer-events: none; animation: flash .4s forwards; }
+@keyframes flash { from { opacity: var(--a, .2) } to { opacity: 0 } }
+.banner { position: fixed; left: 50%; top: var(--y, 50%); transform: translate(-50%, -50%); z-index: 95; max-width: calc(100vw - 30px);
+  background: rgba(13,12,16,.95); border: 1.3px solid var(--bc, var(--paper)); color: var(--bc, var(--paper)); border-radius: 12px;
+  padding: 10px 16px; font: 700 15px var(--body); text-align: center; pointer-events: none; animation: banner var(--t, 1s) forwards; }
+@keyframes banner { 0% { opacity: 0 } 10%, 75% { opacity: 1 } 100% { opacity: 0 } }
+
+/* Reward / augments / shrine */
+.panel { border: 1.4px solid var(--faint); border-radius: 14px; background: var(--panel); padding: 10px; cursor: pointer; }
+.panel.sel { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember); }
+.panel.gold { border-color: rgba(232,194,106,.45); }
+.panel.gold.sel { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.panel .cards { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+.list { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 10px; }
+.aug { display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: center; }
+.aug .medal { width: 48px; height: 48px; } .aug .medal svg { width: 32px; height: 32px; }
+.aug b { font: 700 18px var(--title); color: var(--gold); display: block; }
+.unlock { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+.unlock b { font: 700 17px var(--title); display: block; }
+.unlock .btn { min-height: 38px; padding: 0 14px; font-size: 14px; }
+.owned { color: var(--ember); font: 700 13px var(--body); }
+.howto h3 { color: var(--ember); font-size: 20px; margin: 14px 0 4px; }
+.howto p { margin: 0; font-size: 15px; }
+.gl { display: grid; grid-template-columns: 84px 1fr; gap: 4px 10px; font-size: 14px; }
+.gl b { font-weight: 700; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.78); display: flex; flex-direction: column;
+  padding: calc(var(--st) + 12px) 10px calc(var(--sb) + 12px); animation: fadein .15s; }
+.modal .inner { max-width: 520px; width: 100%; margin: 0 auto; flex: 1; display: flex; flex-direction: column; min-height: 0; gap: 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cw), 1fr)); gap: 8px; justify-items: center; }
+.grid .card { --cw: min(110px, calc((100vw - 40px) / 3)); cursor: default; }
+.toast { position: fixed; left: 50%; bottom: calc(var(--sb) + 200px); transform: translateX(-50%); z-index: 120; max-width: calc(100vw - 30px);
+  background: rgba(13,12,16,.96); border: 1.3px solid var(--tc, var(--paper)); color: var(--tc, var(--paper)); border-radius: 12px;
+  padding: 10px 14px; font: 700 14px var(--body); text-align: center; animation: banner 2.2s forwards; pointer-events: none; }
+.loading { flex: 1; display: grid; place-items: center; color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { *, *::before { animation-duration: .01s !important; } }
+@media (max-height: 700px) { .cmd svg { width: 64px; height: 64px; } .slot { min-height: 92px; } .ename h2 { font-size: 19px; } }
+
+</style></head><body>
+<div id="embers"></div><main id="app"></main>
+<script>
+// Ashbound rules, ported from the Swift version (Core/*.swift). No DOM here.
+const Core = (() => {
+  // ---------- RNG (mulberry32; state is a plain number so it saves easily) ----------
+  class RNG {
+    constructor(seed) { this.s = (seed >>> 0) || 0x9e3779b9; }
+    next() {
+      let t = (this.s = (this.s + 0x6d2b79f5) >>> 0);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    int(lo, hiExclusive) { return lo + Math.floor(this.next() * (hiExclusive - lo)); }
+    chance(p) { return this.next() < p; }
+    pick(a) { return a.length ? a[Math.floor(this.next() * a.length)] : undefined; }
+    shuffle(a) {
+      const b = a.slice();
+      for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(this.next() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; }
+      return b;
+    }
+  }
+
+  // ---------- Cards ----------
+  const THEMES = {
+    starter: ['Starter', ''], embers: ['Embers', 'Direct damage spells'], bulwark: ['Bulwark', 'Block and sturdy walls'],
+    swarm: ['Swarm', 'Small creatures that die for value'], artifice: ['Artifice', 'Artifacts that keep working'],
+    scorch: ['Scorch', 'Damage over time'], giants: ['Giants', 'Big creatures and buffs'], pyre: ['Pyre', 'Ash and Burn'],
+    hex: ['Hex', 'Curses that cripple the enemy'], legendary: ['Legendary', ''],
+  };
+  const C = [];
+  const spell = (id, name, cost, theme, text, o = {}) =>
+    C.push({ id, name, cost, type: 'spell', theme, text, power: 0, health: 0, needsAlly: !!o.needsAlly, damaging: !!o.damaging, charges: 0 });
+  const creature = (id, name, cost, theme, p, h, text = '') =>
+    C.push({ id, name, cost, type: 'creature', theme, text, power: p, health: h, needsAlly: false, damaging: false, charges: 0 });
+  const artifact = (id, name, cost, theme, text, charges = 0) =>
+    C.push({ id, name, cost, type: 'artifact', theme, text, power: 0, health: 0, needsAlly: false, damaging: false, charges });
+  const D = { damaging: true }, A = { needsAlly: true };
+
+  spell('strike', 'Strike', 1, 'starter', 'Deal 3 damage.', D);
+  spell('guardUp', 'Guard', 1, 'starter', 'Gain 4 Block.');
+  creature('ashling', 'Ashling', 1, 'starter', 1, 2);
+  spell('emberBolt', 'Ember Bolt', 2, 'starter', 'Deal 6 damage.', D);
+  creature('huskHound', 'Husk Hound', 2, 'starter', 2, 3);
+  artifact('cinderLamp', 'Cinder Lamp', 2, 'starter', 'End of your turn: deal 3 damage.');
+
+  spell('flameJab', 'Flame Jab', 1, 'embers', 'Deal 2 damage. Draw a card.', D);
+  spell('twinFlames', 'Twin Flames', 2, 'embers', 'Deal 5 damage twice.', D);
+  spell('searingBolt', 'Searing Bolt', 3, 'embers', 'Deal 11 damage.', D);
+  spell('firestorm', 'Firestorm', 5, 'embers', 'Deal 19 damage.', D);
+  spell('inferno', 'Inferno', 7, 'embers', 'Deal 26 damage.', D);
+
+  spell('brace', 'Brace', 2, 'bulwark', 'Gain 9 Block.');
+  spell('secondWind', 'Second Wind', 2, 'bulwark', 'Gain 5 Block. Draw a card.');
+  creature('boneWall', 'Bone Wall', 3, 'bulwark', 1, 11);
+  spell('ironSkin', 'Iron Skin', 4, 'bulwark', 'Gain 18 Block.');
+  artifact('ironTotem', 'Iron Totem', 3, 'bulwark', 'Start of your turn: gain 4 Block.');
+  spell('shieldBash', 'Shield Bash', 1, 'bulwark', 'Deal damage equal to your Block.', D);
+
+  creature('cinderMoth', 'Cinder Moth', 0, 'swarm', 1, 1, 'When it dies, deal 3 damage.');
+  creature('emberFox', 'Ember Fox', 1, 'swarm', 2, 1, 'When it dies, draw a card.');
+  spell('kindle', 'Kindle', 0, 'swarm', 'Your creature dies. Draw 2 cards.', A);
+  spell('swarmCall', 'Swarm Call', 1, 'swarm', 'Your creature dies. Summon a Cinder Moth.');
+  creature('broodMother', 'Brood Mother', 4, 'swarm', 4, 5, 'When it dies, summon a Cinder Moth.');
+
+  artifact('boneAltar', 'Bone Altar', 1, 'artifice', 'Whenever your creature dies, deal 5 damage.');
+  artifact('ashCenser', 'Ash Censer', 2, 'artifice', 'Start of your turn: gain 1 Ash.');
+  artifact('mirrorShard', 'Mirror Shard', 2, 'artifice', 'Enemy attacks deal 4 less. Breaks after 4 attacks.', 4);
+  artifact('hourglass', 'Hourglass', 2, 'artifice', 'Gain 1 extra energy each turn.');
+  creature('clockworkGolem', 'Clockwork Golem', 3, 'artifice', 3, 5, 'Gets +3/+3 for each artifact you have.');
+
+  spell('emberDart', 'Ember Dart', 1, 'scorch', 'Apply 5 Scorch.');
+  spell('smokeCloud', 'Smoke Cloud', 2, 'scorch', 'Apply 9 Scorch.');
+  spell('catalyst', 'Catalyst', 2, 'scorch', "Double the enemy's Scorch.");
+  creature('scorchImp', 'Scorch Imp', 2, 'scorch', 2, 3, 'When it attacks, apply 3 Scorch.');
+  artifact('brazier', 'Brazier', 2, 'scorch', 'End of your turn: apply 3 Scorch.');
+  spell('wildfire', 'Wildfire', 4, 'scorch', "Deal damage equal to the enemy's Scorch, then apply 4 Scorch.");
+
+  spell('fanFlames', 'Fan the Flames', 2, 'giants', 'Your creature gets +4 attack.', A);
+  creature('hound', 'Hound', 3, 'giants', 4, 5);
+  spell('battleCry', 'Battle Cry', 3, 'giants', 'Your creature gets +2/+6.', A);
+  creature('stoneWarden', 'Stone Warden', 5, 'giants', 6, 9);
+  creature('pyreGiant', 'Pyre Giant', 7, 'giants', 10, 12);
+
+  spell('stokeSpark', 'Spark', 0, 'pyre', 'Gain 1 Ash. Draw a card.');
+  spell('ashBlade', 'Ash Blade', 3, 'pyre', 'Deal 7 damage. Gain 1 Ash.', D);
+  spell('lastRites', 'Last Rites', 2, 'pyre', 'Your creature dies. Fill your Ash.', A);
+  spell('heatUp', 'Heat Up', 2, 'pyre', 'Burn deals 8 more damage this fight.');
+  creature('phoenix', 'Phoenix', 5, 'pyre', 5, 6, 'When it dies, gain 2 Ash.');
+
+  spell('weaken', 'Weaken', 1, 'hex', 'This round, enemy attacks deal 5 less.');
+  spell('rot', 'Rot', 1, 'hex', 'Start of your turns: the enemy takes 3 damage. Stacks.');
+  spell('expose', 'Expose', 1, 'hex', "Remove the enemy's Block. It can't gain Block this round. Draw a card.");
+  spell('turncoat', 'Turncoat', 2, 'hex', "The enemy's minion hits the enemy for triple its attack, then dies.");
+  spell('smother', 'Smother', 2, 'hex', "The enemy's next action does nothing.");
+
+  artifact('sunForge', 'Sun Forge', 5, 'legendary', 'Start of your turn: deal 4 damage and gain 4 Block.');
+  artifact('soulFurnace', 'Soul Furnace', 3, 'legendary', 'Whenever your creature dies, gain 1 energy and draw a card.');
+  artifact('ashenCrown', 'Ashen Crown', 5, 'legendary', 'Your creature attacks twice.');
+  artifact('graveBell', 'Grave Bell', 3, 'legendary', 'Whenever your creature dies, deal damage equal to its attack.');
+  artifact('clockworkHeart', 'Clockwork Heart', 4, 'legendary', 'End of your turn: if you have no creature, summon a 3/4 Cog Hound.');
+  artifact('pyreAltar', 'Pyre Altar', 4, 'legendary', 'Whenever you Burn, gain 10 Block and draw 2 cards.');
+  artifact('eternalEmber', 'Eternal Ember', 3, 'legendary', 'Scorch on the enemy no longer fades.');
+
+  const CARDS = Object.fromEntries(C.map(c => [c.id, c]));
+  const card = id => CARDS[id];
+  const cardsOf = theme => C.filter(c => c.theme === theme);
+  const STARTER = ['strike', 'strike', 'strike', 'guardUp', 'guardUp', 'ashling', 'ashling', 'emberBolt', 'huskHound', 'cinderLamp'];
+
+  const MAX_ENERGY = 10, STOKE_COST = 2, MAX_ARTIFACTS = 3, TOTAL_FIGHTS = 8;
+
+  // ---------- Augments ----------
+  const AUGMENTS = {
+    emberHeart: ['Ember Heart', 'Gain 1 extra energy every round.'],
+    phoenixFeather: ['Phoenix Feather', 'The first time you would die each fight, survive with 10 HP.'],
+    hotCoals: ['Hot Coals', 'Burn only needs 2 Ash.'],
+    graveLantern: ['Grave Lantern', 'Your creatures get +2/+2.'],
+    whetstone: ['Whetstone', 'Damage spells deal 2 more damage.'],
+    ironThimble: ['Iron Thimble', 'Start each fight with 10 Block.'],
+    boneDice: ['Bone Dice', 'Start each fight with 2 extra cards.'],
+    ashCrown: ['Ash Crown', 'Stoke costs 1 energy instead of 2.'],
+    mourningVeil: ['Mourning Veil', 'Whenever your creature dies, gain 5 Block.'],
+    brandOfFury: ['Brand of Fury', 'Burn deals double damage.'],
+    wellspring: ['Wellspring', 'Draw 2 cards each turn instead of 1.'],
+    cinderCloak: ['Cinder Cloak', 'Gain 1 Ash at the start of each of your turns.'],
+    bloodFang: ['Blood Fang', 'Your damage spells heal you for 2.'],
+    kindledWounds: ['Kindled Wounds', 'Whenever you apply Scorch, apply 2 more.'],
+  };
+  const AUGMENT_IDS = Object.keys(AUGMENTS);
+
+  // ---------- Enemies ----------
+  const MINIONS = {
+    husk: ['Husk', 2, 2], bonewall: ['Bonewall', 2, 7], wisp: ['Wisp', 3, 2], grub: ['Grub', 3, 4],
+    pyreguard: ['Pyreguard', 6, 10], shade: ['Shade', 5, 8], abbeyGuard: ['Abbey Guard', 4, 12],
+  };
+  const at = (n, hits = 1) => ({ kind: 'attack', amount: n, hits });
+  const bl = n => ({ kind: 'block', amount: n });
+  const en = n => ({ kind: 'enrage', amount: n });
+  const he = n => ({ kind: 'heal', amount: n });
+  const su = m => ({ kind: 'summon', amount: 0, minion: m });
+  const lu = n => ({ kind: 'lunge', amount: n });
+  const wi = n => ({ kind: 'wither', amount: n });
+  const sh = () => ({ kind: 'shatter', amount: 0 });
+  const ENEMIES = {
+    huskShepherd: { name: 'Husk Shepherd', title: 'Herder of the Hollow', tier: 1, hp: 34, hue: 0.08, pattern: [su('husk'), at(3), at(4), en(1)] },
+    cinderWraith: { name: 'Cinder Wraith', title: 'Smoke Given Hunger', tier: 1, hp: 30, hue: 0.03, pattern: [at(2, 2), bl(5), at(5)] },
+    inkLeech: { name: 'Ink Leech', title: 'That Which Drinks Names', tier: 1, hp: 34, hue: 0.75, pattern: [at(4), he(5), at(5)] },
+    graveWarden: { name: 'Grave Warden', title: 'Keeper of Quiet Stones', tier: 2, hp: 62, hue: 0.6, pattern: [bl(7), at(6), su('bonewall'), lu(6), at(8)] },
+    paleChoir: { name: 'Pale Chorister', title: 'A Hymn Without Throat', tier: 2, hp: 56, hue: 0.5, pattern: [su('wisp'), lu(5), at(6), en(2)] },
+    hollowMatron: { name: 'Hollow Matron', title: 'Mother of Grubs', tier: 2, hp: 60, hue: 0.3, pattern: [su('grub'), at(6), wi(3), he(8), at(8)] },
+    ashenKnight: { name: 'Ashen Knight', title: 'Oathless Blade', tier: 2, hp: 64, hue: 0.0, pattern: [at(7), sh(), lu(7), at(4, 2), en(2)] },
+    boneOracle: { name: 'Bone Oracle', title: 'Reader of Marrow', tier: 3, hp: 92, hue: 0.85, pattern: [wi(3), at(8), lu(9), bl(12), at(10)] },
+    ironAbbot: { name: 'The Iron Abbot', title: 'Who Prays With Hammers', tier: 3, hp: 100, hue: 0.12, pattern: [bl(12), at(10), sh(), su('abbeyGuard'), wi(4), at(6, 2), en(3)] },
+    wardenOfPyres: { name: 'Warden of Pyres', title: 'Last Keeper of the Flame', tier: 4, hp: 140, hue: 0.06, pattern: [su('pyreguard'), at(10), lu(10), sh(), at(7, 2), wi(3), en(3), at(13)] },
+    silentChoir: { name: 'The Silent Choir', title: 'Many Mouths, No Voice', tier: 4, hp: 120, hue: 0.55, pattern: [at(5, 3), wi(4), su('shade'), lu(11), he(15), at(12), en(3)] },
+  };
+  const TUNING = { 1: [0.95, 0.85], 2: [0.92, 1.0], 3: [0.9, 1.25], 4: [0.8, 1.35] };
+  const enemiesOfTier = t => Object.keys(ENEMIES).filter(k => ENEMIES[k].tier === t);
+
+  // ---------- Battle ----------
+  class Battle {
+    constructor(enemyId, fight, deck, maxHP, augments, burnBonus, seed) {
+      this.enemyId = enemyId;
+      this.enemy = ENEMIES[enemyId];
+      this.fight = fight;
+      this.aug = new Set(augments);
+      this.burnBonus = burnBonus;
+      this.rng = new RNG(seed);
+      this.hp = maxHP; this.maxHP = maxHP;
+      this.block = 0; this.energy = 0; this.maxEnergyThisRound = 0;
+      this.ash = 0; this.ashGainedTotal = 0; this.heat = 0;
+      this.stokedThisTurn = false; this.featherUsed = false;
+      this.nextID = 1;
+      this.drawPile = this.rng.shuffle(deck.map(id => this.makeCard(id)));
+      this.hand = []; this.discard = []; this.artifacts = [];
+      this.round = 0;
+      this.enemyMaxHP = Math.round(this.enemy.hp * TUNING[this.enemy.tier][0]);
+      this.enemyHP = this.enemyMaxHP;
+      this.enemyBlock = 0; this.enrage = 0; this.intent = null; this.patternIndex = 0;
+      this.weaken = 0; this.exposed = false; this.smothered = false; this.rotStacks = 0; this.scorch = 0;
+      this.allies = { player: null, enemy: null };
+      this.events = []; this.outcome = 'ongoing';
+    }
+    makeCard(id) { return { uid: this.nextID++, id }; }
+    ev(type, data = {}) { this.events.push(this.captureSnaps ? { type, ...data, snap: this.snapshot() } : { type, ...data }); }
+    snapshot() {
+      const cp = a => a ? { ...a } : null;
+      return {
+        hp: this.hp, maxHP: this.maxHP, block: this.block, energy: this.energy, maxE: this.maxEnergyThisRound,
+        ash: this.ash, ashNeeded: this.ashNeeded, canStoke: this.canStoke, canBurn: this.canBurn, burnDamage: this.burnDamage,
+        stokePrice: this.stokePrice, stoked: this.stokedThisTurn,
+        enemyHP: this.enemyHP, enemyMaxHP: this.enemyMaxHP, enemyBlock: this.enemyBlock,
+        allies: { player: cp(this.allies.player), enemy: cp(this.allies.enemy) },
+        artifacts: this.artifacts.map(a => ({ ...a })), hand: this.hand.map(c => ({ ...c })),
+        drawCount: this.drawPile.length, discardCount: this.discard.length, round: this.round,
+        status: this.enemyStatus, intent: this.intentText(),
+      };
+    }
+    has(id) { return this.artifacts.some(a => a.id === id); }
+    count(id) { return this.artifacts.filter(a => a.id === id).length; }
+
+    get ashNeeded() { return this.aug.has('hotCoals') ? 2 : 3; }
+    get canBurn() { return this.outcome === 'ongoing' && this.ash >= this.ashNeeded; }
+    get burnDamage() { return (12 + this.burnBonus + this.heat) * (this.aug.has('brandOfFury') ? 2 : 1); }
+    get stokePrice() { return this.aug.has('ashCrown') ? 1 : STOKE_COST; }
+    get canStoke() { return this.outcome === 'ongoing' && !this.stokedThisTurn && this.energy >= this.stokePrice && this.ash < this.ashNeeded; }
+    get spellBonus() { return this.aug.has('whetstone') ? 2 : 0; }
+
+    canPlay(c) {
+      const d = card(c.id);
+      if (this.outcome !== 'ongoing' || d.cost > this.energy) return false;
+      if (d.needsAlly && !this.allies.player) return false;
+      if (c.id === 'turncoat' && !this.allies.enemy) return false;
+      return true;
+    }
+    blockedReason(c) {
+      const d = card(c.id);
+      if (d.cost > this.energy) return 'Not enough energy. You get 1 more each round.';
+      if (d.needsAlly && !this.allies.player) return 'You need a creature in front of you.';
+      if (c.id === 'turncoat' && !this.allies.enemy) return 'The enemy has no minion.';
+      return null;
+    }
+
+    start() {
+      if (this.aug.has('ironThimble')) this.gainBlock(10);
+      this.draw(3 + (this.aug.has('boneDice') ? 2 : 0));
+      this.rollIntent(1);
+      this.beginTurn();
+    }
+
+    beginTurn() {
+      this.round++;
+      if (this.round > 1 && this.block !== 0) { this.block = 0; this.ev('block', { side: 'player', value: 0 }); }
+      this.maxEnergyThisRound = Math.min(this.round, MAX_ENERGY) + (this.aug.has('emberHeart') ? 1 : 0) + this.count('hourglass');
+      this.energy = this.maxEnergyThisRound;
+      this.stokedThisTurn = false;
+      this.ev('energy');
+      if (this.scorch > 0) {
+        this.ev('info', { text: `Scorch burns ${this.enemy.name} for ${this.scorch}.` });
+        this.hitFace('enemy', this.scorch, true);
+        if (this.outcome !== 'ongoing') return;
+        if (!this.has('eternalEmber')) this.scorch--;
+        this.ev('status');
+      }
+      if (this.rotStacks > 0) {
+        this.ev('info', { text: `Rot gnaws at ${this.enemy.name}.` });
+        this.hitFace('enemy', this.rotStacks * 3, true);
+        if (this.outcome !== 'ongoing') return;
+      }
+      for (const a of this.artifacts.slice()) {
+        if (a.id === 'ironTotem') { this.ev('artifactFires', { uid: a.uid }); this.gainBlock(4); }
+        else if (a.id === 'ashCenser') { this.ev('artifactFires', { uid: a.uid }); this.gainAsh(1); }
+        else if (a.id === 'sunForge') { this.ev('artifactFires', { uid: a.uid }); this.hitFront('enemy', 4); this.gainBlock(4); }
+        if (this.outcome !== 'ongoing') return;
+      }
+      if (this.aug.has('cinderCloak')) this.gainAsh(1);
+      this.draw(this.aug.has('wellspring') ? 2 : 1);
+    }
+
+    draw(n) {
+      let drew = false;
+      for (let i = 0; i < n; i++) {
+        if (this.hand.length >= 10) break;
+        if (!this.drawPile.length) {
+          if (!this.discard.length) break;
+          this.drawPile = this.rng.shuffle(this.discard);
+          this.discard = [];
+        }
+        this.hand.push(this.drawPile.pop());
+        drew = true;
+      }
+      if (drew) this.ev('hand');
+    }
+
+    play(uid) {
+      if (this.outcome !== 'ongoing') return false;
+      const idx = this.hand.findIndex(c => c.uid === uid);
+      if (idx < 0) return false;
+      const c = this.hand[idx], d = card(c.id);
+      if (!this.canPlay(c)) return false;
+      this.energy -= d.cost;
+      this.ev('energy');
+      this.hand.splice(idx, 1);
+      this.ev('hand');
+      if (d.type === 'artifact') this.placeArtifact(c);
+      else if (d.type === 'creature') {
+        this.discard.push(c);
+        if (this.allies.player) this.killAlly('player');
+        if (this.outcome === 'ongoing') this.summonPlayer(c.id);
+      } else {
+        this.discard.push(c);
+        this.resolve(c);
+        if (d.damaging && this.aug.has('bloodFang')) this.healPlayer(2);
+      }
+      this.checkOutcome();
+      return true;
+    }
+
+    stoke() {
+      if (!this.canStoke) return;
+      this.energy -= this.stokePrice;
+      this.stokedThisTurn = true;
+      this.ev('energy');
+      this.gainAsh(1);
+    }
+
+    useBurn() {
+      if (!this.canBurn) return;
+      this.ash = 0;
+      this.ev('ash');
+      const d = this.burnDamage;
+      this.ev('burn', { amount: d });
+      this.hitFace('enemy', d, true);
+      for (const a of this.artifacts.slice()) {
+        if (a.id === 'pyreAltar' && this.outcome === 'ongoing') {
+          this.ev('artifactFires', { uid: a.uid });
+          this.gainBlock(10);
+          this.draw(2);
+        }
+      }
+    }
+
+    endTurn() {
+      if (this.outcome !== 'ongoing') return;
+      const a = this.allies.player;
+      if (a && a.power > 0) {
+        const swings = 1 + this.count('ashenCrown');
+        for (let i = 0; i < swings; i++) {
+          const cur = this.allies.player;
+          if (!cur || cur.id !== a.id || this.outcome !== 'ongoing') break;
+          this.ev('allyAttacks', { side: 'player' });
+          this.hitFront('enemy', cur.power);
+          if (cur.cardID === 'scorchImp') this.applyScorch(3);
+        }
+        if (this.outcome !== 'ongoing') return;
+      }
+      for (const art of this.artifacts.slice()) {
+        if (art.id === 'cinderLamp') { this.ev('artifactFires', { uid: art.uid }); this.hitFront('enemy', 3); }
+        else if (art.id === 'brazier') { this.ev('artifactFires', { uid: art.uid }); this.applyScorch(3); }
+        else if (art.id === 'clockworkHeart' && !this.allies.player) {
+          this.ev('artifactFires', { uid: art.uid });
+          this.summonToken('Cog Hound', 3, 4);
+        }
+        if (this.outcome !== 'ongoing') return;
+      }
+      if (this.enemyBlock !== 0) { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
+      if (this.smothered) {
+        this.smothered = false;
+        this.ev('enemyActs', { text: `${this.enemy.name} is smothered and does nothing.` });
+        this.ev('status');
+      } else if (this.intent) this.execute(this.intent);
+      if (this.outcome !== 'ongoing') return;
+      const m = this.allies.enemy;
+      if (m && !m.fresh && m.power > 0) {
+        this.ev('allyAttacks', { side: 'enemy' });
+        this.enemyAttack(m.power, false);
+        if (this.outcome !== 'ongoing') return;
+      }
+      if (this.allies.enemy && this.allies.enemy.fresh) this.allies.enemy.fresh = false;
+      if (this.weaken !== 0 || this.exposed) { this.weaken = 0; this.exposed = false; this.ev('status'); }
+      this.rollIntent(this.round + 1);
+      this.beginTurn();
+    }
+
+    resolve(c) {
+      const sb = this.spellBonus;
+      switch (c.id) {
+        case 'strike': this.hitFront('enemy', 3 + sb); break;
+        case 'emberBolt': this.hitFront('enemy', 6 + sb); break;
+        case 'flameJab': this.hitFront('enemy', 2 + sb); this.draw(1); break;
+        case 'twinFlames': this.hitFront('enemy', 5 + sb); if (this.outcome === 'ongoing') this.hitFront('enemy', 5 + sb); break;
+        case 'searingBolt': this.hitFront('enemy', 11 + sb); break;
+        case 'firestorm': this.hitFront('enemy', 19 + sb); break;
+        case 'inferno': this.hitFront('enemy', 26 + sb); break;
+        case 'ashBlade': this.hitFront('enemy', 7 + sb); this.gainAsh(1); break;
+        case 'guardUp': this.gainBlock(4); break;
+        case 'brace': this.gainBlock(9); break;
+        case 'secondWind': this.gainBlock(5); this.draw(1); break;
+        case 'ironSkin': this.gainBlock(18); break;
+        case 'shieldBash': this.hitFront('enemy', this.block + sb); break;
+        case 'kindle': this.killAlly('player'); if (this.outcome === 'ongoing') this.draw(2); break;
+        case 'swarmCall':
+          if (this.allies.player) this.killAlly('player');
+          if (this.outcome === 'ongoing') this.summonPlayer('cinderMoth');
+          break;
+        case 'fanFlames': this.buffAlly(4, 0); break;
+        case 'battleCry': this.buffAlly(2, 6); break;
+        case 'stokeSpark': this.gainAsh(1); this.draw(1); break;
+        case 'lastRites': this.killAlly('player'); this.gainAsh(this.ashNeeded); break;
+        case 'heatUp': this.heat += 8; this.ev('info', { text: `Burn now deals ${this.burnDamage}.` }); break;
+        case 'weaken': this.weaken += 5; this.ev('status'); break;
+        case 'rot': this.rotStacks++; this.ev('status'); break;
+        case 'expose':
+          this.exposed = true;
+          if (this.enemyBlock > 0) { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
+          this.ev('status'); this.draw(1); break;
+        case 'turncoat': {
+          const m = this.allies.enemy;
+          if (m) {
+            this.ev('allyAttacks', { side: 'enemy' });
+            this.ev('info', { text: `${m.name} turns on its master!` });
+            this.hitFace('enemy', m.power * 3);
+            this.killAlly('enemy');
+          }
+          break;
+        }
+        case 'smother': this.smothered = true; this.ev('status'); break;
+        case 'emberDart': this.applyScorch(5); break;
+        case 'smokeCloud': this.applyScorch(9); break;
+        case 'catalyst': this.applyScorch(this.scorch); break;
+        case 'wildfire': if (this.scorch > 0) this.hitFace('enemy', this.scorch + sb, true); this.applyScorch(4); break;
+      }
+    }
+
+    applyScorch(n) {
+      if (n <= 0 || this.outcome !== 'ongoing') return;
+      this.scorch += n + (this.aug.has('kindledWounds') ? 2 : 0);
+      this.ev('status');
+    }
+
+    buffAlly(p, h) {
+      const a = this.allies.player;
+      if (!a) return;
+      a.power += p; a.health += h; a.maxHealth += h;
+      this.ev('allyChanged', { side: 'player' });
+    }
+
+    placeArtifact(c) {
+      if (this.artifacts.length >= MAX_ARTIFACTS) {
+        const old = this.artifacts.shift();
+        this.ev('info', { text: `${card(old.id).name} crumbles to make room.` });
+      }
+      this.artifacts.push({ uid: c.uid, id: c.id, charges: card(c.id).charges });
+      this.ev('artifacts');
+    }
+
+    summonPlayer(id) {
+      const d = card(id);
+      let p = d.power, h = d.health;
+      if (this.aug.has('graveLantern')) { p += 2; h += 2; }
+      if (id === 'clockworkGolem') { p += 3 * this.artifacts.length; h += 3 * this.artifacts.length; }
+      this.allies.player = { id: this.nextID++, name: d.name, side: 'player', power: p, health: h, maxHealth: h, cardID: id, minion: null, fresh: false };
+      this.ev('allyIn', { side: 'player' });
+    }
+    summonToken(name, p, h) {
+      if (this.aug.has('graveLantern')) { p += 2; h += 2; }
+      this.allies.player = { id: this.nextID++, name, side: 'player', power: p, health: h, maxHealth: h, cardID: null, minion: null, fresh: false };
+      this.ev('allyIn', { side: 'player' });
+    }
+    summonMinion(m) {
+      const [name, bp, bh] = MINIONS[m];
+      const p = bp + Math.floor((this.round - 1) / 3), h = bh + Math.floor((this.round - 1) / 2);
+      this.allies.enemy = { id: this.nextID++, name, side: 'enemy', power: p, health: h, maxHealth: h, cardID: null, minion: m, fresh: true };
+      this.ev('allyIn', { side: 'enemy' });
+    }
+
+    hitFront(side, amount) {
+      if (amount <= 0 || this.outcome !== 'ongoing') return;
+      if (this.allies[side]) {
+        const over = this.hitAlly(side, amount);
+        if (over > 0) this.hitFace(side, over);
+      } else this.hitFace(side, amount);
+    }
+    hitAlly(side, amount) {
+      const a = this.allies[side];
+      if (!a || amount <= 0) return 0;
+      if (amount >= a.health) {
+        const over = amount - a.health;
+        this.ev('allyHit', { side, amount: a.health, newHealth: 0 });
+        this.killAlly(side);
+        return over;
+      }
+      a.health -= amount;
+      this.ev('allyHit', { side, amount, newHealth: a.health });
+      return 0;
+    }
+    enemyAttack(raw, skipAlly) {
+      let dmg = Math.max(0, raw - this.weaken);
+      const i = this.artifacts.findIndex(a => a.id === 'mirrorShard');
+      if (i >= 0) {
+        dmg = Math.max(0, dmg - 4);
+        const s = this.artifacts[i];
+        s.charges--;
+        this.ev('artifactFires', { uid: s.uid });
+        if (s.charges <= 0) { this.artifacts.splice(i, 1); this.ev('info', { text: 'The Mirror Shard breaks.' }); }
+        this.ev('artifacts');
+      }
+      if (skipAlly) this.hitFace('player', dmg); else this.hitFront('player', dmg);
+    }
+    hitFace(side, amount, ignoreBlock = false) {
+      if (amount <= 0 || this.outcome !== 'ongoing') return;
+      let a = amount;
+      if (!ignoreBlock) {
+        const key = side === 'player' ? 'block' : 'enemyBlock';
+        if (this[key] > 0) {
+          const ab = Math.min(this[key], a);
+          a -= ab; this[key] -= ab;
+          this.ev('block', { side, value: this[key] });
+        }
+      }
+      if (a > 0) {
+        if (side === 'player') this.hp -= a; else this.enemyHP -= a;
+        this.ev('faceHit', { side, amount: a });
+      }
+      if (side === 'player' && this.hp <= 0 && this.aug.has('phoenixFeather') && !this.featherUsed) {
+        this.featherUsed = true;
+        const back = 10 - this.hp;
+        this.hp = 10;
+        this.ev('healed', { side: 'player', amount: back });
+        this.ev('info', { text: 'The Phoenix Feather burns. You rise again!' });
+      }
+      this.checkOutcome();
+    }
+    killAlly(side) {
+      const a = this.allies[side];
+      if (!a) return;
+      this.allies[side] = null;
+      this.ev('allyDied', { side });
+      if (side !== 'player') return;
+      this.gainAsh(1);
+      if (this.aug.has('mourningVeil')) this.gainBlock(5);
+      for (const art of this.artifacts.slice()) {
+        if (this.outcome !== 'ongoing') break;
+        if (art.id === 'boneAltar') { this.ev('artifactFires', { uid: art.uid }); this.hitFront('enemy', 5); }
+        else if (art.id === 'graveBell') { this.ev('artifactFires', { uid: art.uid }); this.hitFront('enemy', a.power); }
+        else if (art.id === 'soulFurnace') { this.ev('artifactFires', { uid: art.uid }); this.energy++; this.ev('energy'); this.draw(1); }
+      }
+      if (a.cardID === 'cinderMoth') this.hitFront('enemy', 3);
+      else if (a.cardID === 'emberFox') this.draw(1);
+      else if (a.cardID === 'phoenix') this.gainAsh(2);
+      else if (a.cardID === 'broodMother' && this.outcome === 'ongoing' && !this.allies.player) this.summonPlayer('cinderMoth');
+      this.checkOutcome();
+    }
+    gainAsh(n) {
+      if (n <= 0) return;
+      this.ashGainedTotal += n;
+      const before = this.ash;
+      this.ash = Math.min(this.ashNeeded, this.ash + n);
+      if (this.ash !== before) this.ev('ash');
+    }
+    gainBlock(n) { if (n > 0) { this.block += n; this.ev('block', { side: 'player', value: this.block }); } }
+    healPlayer(n) {
+      const a = Math.min(n, this.maxHP - this.hp);
+      if (a > 0) { this.hp += a; this.ev('healed', { side: 'player', amount: a }); }
+    }
+
+    ramp(r, scale = 1) { return Math.floor((r - 1) * TUNING[this.enemy.tier][1] * scale); }
+    rollIntent(r) {
+      const t = this.enemy.pattern[this.patternIndex % this.enemy.pattern.length];
+      this.patternIndex++;
+      switch (t.kind) {
+        case 'attack': this.intent = { kind: 'attack', amount: t.amount + (t.hits > 1 ? this.ramp(r, 0.5) : this.ramp(r)), hits: t.hits || 1 }; break;
+        case 'lunge': this.intent = { kind: 'lunge', amount: t.amount + this.ramp(r, 0.8), hits: 1 }; break;
+        case 'block': case 'heal': this.intent = { kind: t.kind, amount: t.amount + this.ramp(r, 1.5), hits: 1 }; break;
+        case 'enrage': case 'wither': this.intent = { kind: t.kind, amount: t.amount, hits: 1 }; break;
+        case 'shatter': this.intent = { kind: 'shatter', amount: 0, hits: 1 }; break;
+        case 'summon':
+          this.intent = !this.allies.enemy ? { kind: 'summon', amount: 0, hits: 1, minion: t.minion }
+                                           : { kind: 'attack', amount: 3 + this.ramp(r), hits: 1 };
+          break;
+      }
+    }
+    execute(i) {
+      const n = this.enemy.name;
+      switch (i.kind) {
+        case 'attack':
+          this.ev('enemyActs', { text: `${n} attacks!` });
+          for (let k = 0; k < i.hits && this.outcome === 'ongoing'; k++) this.enemyAttack(i.amount + this.enrage, false);
+          break;
+        case 'lunge':
+          this.ev('enemyActs', { text: `${n} lunges past your creature!` });
+          this.enemyAttack(i.amount + this.enrage, true);
+          break;
+        case 'block':
+          if (this.exposed) this.ev('enemyActs', { text: `${n} tries to brace, but is Exposed.` });
+          else { this.ev('enemyActs', { text: `${n} braces.` }); this.enemyBlock += i.amount; this.ev('block', { side: 'enemy', value: this.enemyBlock }); }
+          break;
+        case 'heal': {
+          this.ev('enemyActs', { text: `${n} heals.` });
+          const a = Math.min(i.amount, this.enemyMaxHP - this.enemyHP);
+          if (a > 0) { this.enemyHP += a; this.ev('healed', { side: 'enemy', amount: a }); }
+          break;
+        }
+        case 'enrage': this.ev('enemyActs', { text: `${n} grows angrier.` }); this.enrage += i.amount; this.ev('status'); break;
+        case 'wither':
+          this.ev('enemyActs', { text: `${n} withers your creature.` });
+          if (this.allies.player) { this.allies.player.power = Math.max(0, this.allies.player.power - i.amount); this.ev('allyChanged', { side: 'player' }); }
+          break;
+        case 'shatter':
+          if (!this.artifacts.length) this.ev('enemyActs', { text: `${n} swings at nothing.` });
+          else { const old = this.artifacts.shift(); this.ev('enemyActs', { text: `${n} shatters your ${card(old.id).name}!` }); this.ev('artifacts'); }
+          break;
+        case 'summon':
+          if (!this.allies.enemy && i.minion) { this.ev('enemyActs', { text: `${n} summons a ${MINIONS[i.minion][0]}.` }); this.summonMinion(i.minion); }
+          break;
+      }
+    }
+    intentText() {
+      const i = this.intent;
+      if (!i) return ['', ''];
+      if (this.smothered) return ['Smothered', 'Does nothing next'];
+      const w = this.weaken > 0 ? ` (−${this.weaken})` : '';
+      switch (i.kind) {
+        case 'attack': { const n = Math.max(0, i.amount + this.enrage - this.weaken); return [i.hits > 1 ? `Attack ${n}×${i.hits}` : `Attack ${n}`, 'Hits your creature first' + w]; }
+        case 'lunge': return [`Lunge ${Math.max(0, i.amount + this.enrage - this.weaken)}`, 'Skips your creature' + w];
+        case 'block': return [`Block ${i.amount}`, this.exposed ? 'Blocked by Expose' : 'Shields itself'];
+        case 'heal': return [`Heal ${i.amount}`, 'Restores its HP'];
+        case 'enrage': return [`Enrage +${i.amount}`, 'Its attacks get stronger'];
+        case 'wither': return [`Wither ${i.amount}`, "Your creature loses attack"];
+        case 'shatter': return ['Shatter', this.artifacts.length ? 'Breaks your oldest artifact' : 'No artifact to break'];
+        case 'summon': {
+          const [name, bp, bh] = MINIONS[i.minion];
+          return ['Summon', `${name} ${bp + Math.floor((this.round - 1) / 3)}/${bh + Math.floor((this.round - 1) / 2)}`];
+        }
+      }
+      return ['', ''];
+    }
+    get enemyStatus() {
+      const p = [];
+      if (this.enrage > 0) p.push(`Enraged +${this.enrage}`);
+      if (this.scorch > 0) p.push(`Scorch ${this.scorch}`);
+      if (this.rotStacks > 0) p.push(`Rot ${this.rotStacks * 3}/turn`);
+      if (this.weaken > 0) p.push(`Weak −${this.weaken}`);
+      if (this.exposed) p.push('Exposed');
+      return p.join(' · ');
+    }
+    checkOutcome() {
+      if (this.outcome !== 'ongoing') return;
+      if (this.enemyHP <= 0) { this.enemyHP = 0; this.outcome = 'won'; }
+      else if (this.hp <= 0) { this.hp = 0; this.outcome = 'lost'; }
+    }
+    takeEvents() { const e = this.events; this.events = []; return e; }
+  }
+
+  // ---------- Meta (permanent unlocks) ----------
+  const UNLOCKS = [
+    ['vitality1', 'Vitality I', 'Start every run with +3 max HP.', 40, null],
+    ['themeGiants', 'Giants Bundles', 'Giants bundles can be offered: big creatures and buffs.', 50, null],
+    ['hotterBurn', 'Hotter Burn I', 'Burn deals 2 more damage.', 60, null],
+    ['themeHex', 'Hex Bundles', 'Hex bundles can be offered: Weaken, Rot, Smother and more.', 70, null],
+    ['widerChoice', 'Wider Choice', 'See 4 card bundles after each fight instead of 3.', 80, null],
+    ['vitality2', 'Vitality II', 'Start every run with +3 max HP.', 100, 'vitality1'],
+    ['themePyre', 'Pyre Bundles', 'Pyre bundles can be offered: Ash and Burn.', 90, null],
+    ['treasureHunter', 'Treasure Hunter', 'See 4 augments instead of 3.', 110, null],
+    ['headStart', 'Head Start', 'Start every run with a random augment.', 150, null],
+    ['hotterBurn2', 'Hotter Burn II', 'Burn deals 2 more damage.', 120, 'hotterBurn'],
+    ['vitality3', 'Vitality III', 'Start every run with +3 max HP.', 160, 'vitality2'],
+  ].map(([id, name, detail, cost, requires]) => ({ id, name, detail, cost, requires }));
+
+  const newMeta = () => ({ ash: 0, lifetimeAsh: 0, unlocked: [], runs: 0, wins: 0, bestFight: 0, soundOn: true, seenTutorial: false });
+  const Meta = {
+    vitality: m => ['vitality1', 'vitality2', 'vitality3'].filter(u => m.unlocked.includes(u)).length,
+    burnBonus: m => ['hotterBurn', 'hotterBurn2'].filter(u => m.unlocked.includes(u)).length * 2,
+    themes: m => {
+      const t = ['embers', 'bulwark', 'swarm', 'artifice', 'scorch'];
+      if (m.unlocked.includes('themeHex')) t.push('hex');
+      if (m.unlocked.includes('themeGiants')) t.push('giants');
+      if (m.unlocked.includes('themePyre')) t.push('pyre');
+      return t;
+    },
+    canBuy: (m, u) => !m.unlocked.includes(u.id) && m.ash >= u.cost && (!u.requires || m.unlocked.includes(u.requires)),
+    buy: (m, u) => { if (!Meta.canBuy(m, u)) return false; m.ash -= u.cost; m.unlocked.push(u.id); return true; },
+    bank: (m, n) => { m.ash += n; m.lifetimeAsh += n; },
+  };
+
+  // ---------- Run ----------
+  const AUGMENT_AFTER = [2, 4, 6];
+  const Run = {
+    create(meta, seed) {
+      const rng = new RNG(seed);
+      const r = { rngState: 0, maxHP: 30 + 3 * Meta.vitality(meta), deck: STARTER.slice(), augments: [], fight: 1, opponents: [],
+                  stage: 'preFight', ashEarned: 0, pendingBundles: [], pendingAugments: [], pendingArtifact: null };
+      r.opponents = [...rng.shuffle(enemiesOfTier(1)).slice(0, 2), ...rng.shuffle(enemiesOfTier(2)).slice(0, 3),
+                     ...rng.shuffle(enemiesOfTier(3)).slice(0, 2), rng.shuffle(enemiesOfTier(4))[0]];
+      if (meta.unlocked.includes('headStart')) r.augments.push(rng.pick(AUGMENT_IDS));
+      r.rngState = rng.s;
+      return r;
+    },
+    rng(r) { const g = new RNG(1); g.s = r.rngState; return g; },
+    save(r, g) { r.rngState = g.s; },
+    currentEnemy: r => r.opponents[Math.min(r.fight, r.opponents.length) - 1],
+    isFinal: r => r.fight >= TOTAL_FIGHTS,
+    nextSeed(r) { const g = Run.rng(r); const s = Math.floor(g.next() * 4294967296); Run.save(r, g); return s; },
+    winFight(r, b, meta) {
+      r.ashEarned += b.ashGainedTotal;
+      const g = Run.rng(r);
+      const themes = g.shuffle(Meta.themes(meta)).slice(0, meta.unlocked.includes('widerChoice') ? 4 : 3);
+      r.pendingBundles = themes.map(t => {
+        const pool = cardsOf(t);
+        const picks = [];
+        let tries = 0;
+        while (picks.length < 3 && tries < 40) {
+          tries++;
+          const c = g.pick(pool);
+          if (c.cost >= 5 && r.fight < 3 && g.chance(0.7)) continue;
+          if (picks.includes(c.id) && g.chance(0.6)) continue;
+          picks.push(c.id);
+        }
+        return { theme: t, cards: picks.sort((a, b) => card(a).cost - card(b).cost) };
+      });
+      const owned = new Set(r.deck);
+      r.pendingArtifact = g.pick(cardsOf('legendary').map(c => c.id).filter(id => !owned.has(id))) || null;
+      r.stage = 'bundle';
+      Run.save(r, g);
+    },
+    takeArtifact(r, meta) { if (r.pendingArtifact) r.deck.push(r.pendingArtifact); return Run.takeBundle(r, null, meta); },
+    takeBundle(r, bundle, meta) {
+      if (bundle) r.deck.push(...bundle.cards);
+      r.pendingBundles = []; r.pendingArtifact = null;
+      if (AUGMENT_AFTER.includes(r.fight)) {
+        const g = Run.rng(r);
+        const n = meta.unlocked.includes('treasureHunter') ? 4 : 3;
+        r.pendingAugments = g.shuffle(AUGMENT_IDS.filter(a => !r.augments.includes(a))).slice(0, n);
+        Run.save(r, g);
+        r.stage = 'augment';
+        return true;
+      }
+      Run.nextFight(r);
+      return false;
+    },
+    takeAugment(r, a) { if (a) r.augments.push(a); r.pendingAugments = []; Run.nextFight(r); },
+    nextFight(r) { r.fight++; r.stage = 'preFight'; },
+    ashToBank: (r, won) => r.ashEarned + (r.fight - 1) * 5 + (won ? 40 : 0),
+  };
+
+  const GLOSSARY = [
+    ['Energy', 'Round 1 gives 1 energy, round 2 gives 2, and so on up to 10.'],
+    ['Creature', 'Stands in front of you, one at a time. Hits land on it first. It attacks at the end of your turn.'],
+    ['Spell', 'Happens once, then goes to your used pile.'],
+    ['Artifact', 'Stays in play and keeps working. You can hold 3; a 4th replaces the oldest.'],
+    ['Block', 'Stops damage to you until your next turn.'],
+    ['Scorch', 'At the start of your turn the enemy takes damage equal to its Scorch, ignoring Block. Then Scorch drops by 1.'],
+    ['Ash', 'Gained whenever your creature dies, or by Stoking. When full, press Burn.'],
+    ['Stoke', 'Spend 2 energy to gain 1 Ash. Once per turn.'],
+  ];
+
+  return { RNG, CARDS, card, cardsOf, THEMES, STARTER, AUGMENTS, AUGMENT_IDS, ENEMIES, MINIONS, TUNING, Battle,
+           UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY };
+})();
+if (typeof module !== 'undefined') module.exports = Core;
+
+</script>
+<script>
+{
+const { card, THEMES, AUGMENTS, ENEMIES, Battle, UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY, RNG } = Core;
+const $ = s => document.querySelector(s);
+const app = $('#app');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const COL = { paper: '#eae3d2', ember: '#ff7a3a', blood: '#e0526a', gold: '#e8c26a', frost: '#9ec5e8', ash: '#9e99a6', vow: '#b894f4', heal: '#8dd996' };
+const typeCol = t => t === 'spell' ? COL.ember : t === 'artifact' ? COL.gold : COL.paper;
+
+// ---------- code-drawn art ----------
+function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function sigil(key, color, o = {}) {
+  const g = new RNG(hash(key)); const r = 44; const ring = o.ring !== false;
+  let main = '', fine = '', glyph = '';
+  const f = n => n.toFixed(1);
+  if (ring) { main += `M${-r},0a${r},${r} 0 1,0 ${2 * r},0a${r},${r} 0 1,0 ${-2 * r},0`; if (g.chance(.5)) { const r2 = r * .88; fine += `M${f(-r2)},0a${f(r2)},${f(r2)} 0 1,0 ${f(2 * r2)},0a${f(r2)},${f(r2)} 0 1,0 ${f(-2 * r2)},0`; } }
+  const sides = g.int(3, 8), rot = g.next() * Math.PI * 2, pr = r * (ring ? .74 : .95);
+  const pts = [...Array(sides)].map((_, i) => [Math.cos(rot + i * 2 * Math.PI / sides) * pr, Math.sin(rot + i * 2 * Math.PI / sides) * pr]);
+  const step = sides >= 5 && g.chance(.45) ? 2 : 1; let idx = 0;
+  main += `M${f(pts[0][0])},${f(pts[0][1])}`;
+  for (let i = 0; i < sides; i++) { idx = (idx + step) % sides; main += `L${f(pts[idx][0])},${f(pts[idx][1])}`; }
+  main += 'Z';
+  if (g.chance(.6)) for (const p of pts) if (g.chance(.7)) fine += `M${f(p[0] * .25)},${f(p[1] * .25)}L${f(p[0])},${f(p[1])}`;
+  if (g.chance(.5)) { const br = r * .065; for (const p of pts) fine += `M${f(p[0] - br)},${f(p[1])}a${f(br)},${f(br)} 0 1,0 ${f(2 * br)},0a${f(br)},${f(br)} 0 1,0 ${f(-2 * br)},0`; }
+  const q = r * .32; let cx = g.int(-1, 2) * q, cy = g.int(-1, 2) * q;
+  glyph = `M${f(cx)},${f(cy)}`;
+  const steps = g.int(3, 6);
+  for (let i = 0; i < steps; i++) {
+    let nx = Math.max(-q, Math.min(q, cx + g.int(-1, 2) * q)), ny = Math.max(-q, Math.min(q, cy + g.int(-1, 2) * q));
+    if (nx === cx && ny === cy) ny = -cy;
+    cx = nx; cy = ny; glyph += `L${f(cx)},${f(cy)}`;
+  }
+  if (o.eye) { const w = r * .42, h = r * .2; glyph += `M${f(-w)},0Q0,${f(-h * 2)} ${f(w)},0Q0,${f(h * 2)} ${f(-w)},0`; const pr2 = r * .08; glyph += `M${f(-pr2)},0a${f(pr2)},${f(pr2)} 0 1,0 ${f(2 * pr2)},0a${f(pr2)},${f(pr2)} 0 1,0 ${f(-2 * pr2)},0`; }
+  const lw = o.lw || 2.4;
+  return `<svg viewBox="-50 -50 100 100" aria-hidden="true" ${o.cls ? `class="${o.cls}"` : ''}><g fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round">
+<path d="${main}" stroke-opacity=".14" stroke-width="${lw * 3.2}"/>
+<path d="${main}" stroke-width="${lw}" ${o.glow ? `style="filter:drop-shadow(0 0 3px ${color})"` : ''}/>
+<path d="${fine}" stroke-opacity=".6" stroke-width="${Math.max(1, lw * .55)}"/>
+<path d="${glyph}" stroke-width="${lw * 1.5}"/></g></svg>`;
+}
+const ICON = {
+  heart: c => `<svg viewBox="-10 -10 20 20"><path d="M0,9C14,0 7,-12 0,-5C-7,-12 -14,0 0,9Z" fill="${c}"/></svg>`,
+  shield: c => `<svg viewBox="-10 -10 20 20"><path d="M0,-9L8,-6Q8,4 0,9Q-8,4 -8,-6Z" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="1.5"/></svg>`,
+  flame: c => `<svg viewBox="-10 -10 20 20"><path d="M0,-10C11,0 8,9 0,9C-8,9 -11,0 0,-10Z" fill="${c}"/></svg>`,
+  ash: c => `<svg viewBox="-10 -10 20 20" fill="${c}">${[[-5, 5], [0, 5], [5, 5], [-2.5, 0], [2.5, 0], [0, -5]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2"/>`).join('')}</svg>`,
+  crown: c => `<svg viewBox="-12 -12 24 24"><path d="M-10,7V-5L-5,1L0,-9L5,1L10,-5V7Z" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/></svg>`,
+};
+
+// ---------- sound (synthesized, no files) ----------
+const Sound = (() => {
+  let ctx = null, buffers = {};
+  const V = (f0, f1, dur, wave, noise, attack, vol, delay = 0) => ({ f0, f1, dur, wave, noise, attack, vol, delay });
+  const DEF = {
+    tap: [V(1400, 900, .035, 1, .1, .002, .25)], card: [V(500, 900, .12, 0, .55, .01, .3)],
+    summon: [V(220, 440, .22, 1, .15, .02, .4), V(330, 660, .2, 0, 0, .03, .2, .04)],
+    hit: [V(160, 50, .16, 0, .35, .002, .7)], death: [V(400, 80, .38, 1, .6, .005, .45)],
+    ash: [V(1320, 1320, .18, 0, 0, .003, .18), V(1760, 1760, .22, 0, 0, .003, .12, .05)],
+    shield: [V(900, 1200, .2, 1, .05, .005, .22)], enemy: [V(110, 90, .3, 2, .2, .02, .3)],
+    burn: [V(70, 35, .8, 0, .5, .005, .9), V(600, 150, .5, 2, .3, .005, .25)],
+    victory: [V(392, 392, .25, 1, 0, .01, .3), V(494, 494, .25, 1, 0, .01, .3, .12), V(587, 587, .5, 1, 0, .01, .3, .24), V(784, 784, .7, 0, 0, .02, .2, .36)],
+    defeat: [V(220, 110, 1.2, 1, .25, .02, .4), V(165, 82, 1.2, 0, 0, .05, .3, .1)],
+    unlock: [V(523, 523, .2, 0, 0, .005, .25), V(784, 784, .35, 0, 0, .005, .25, .08), V(1046, 1046, .5, 0, 0, .005, .2, .16)],
+  };
+  function build(voices) {
+    const rate = ctx.sampleRate, total = Math.max(...voices.map(v => v.delay + v.dur));
+    const buf = ctx.createBuffer(1, Math.ceil(total * rate) + 1, rate), ch = buf.getChannelData(0);
+    let seed = 12345;
+    for (const v of voices) {
+      const start = Math.floor(v.delay * rate), n = Math.floor(v.dur * rate); let ph = 0, lp = 0;
+      for (let i = 0; i < n; i++) {
+        const t = i / n, f = v.f0 + (v.f1 - v.f0) * t; ph += f / rate; const p = ph - Math.floor(ph);
+        let s = v.wave === 1 ? 4 * Math.abs(p - .5) - 1 : v.wave === 2 ? (p < .5 ? .6 : -.6) : Math.sin(2 * Math.PI * p);
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; lp += ((seed / 4294967296) * 2 - 1 - lp) * .25;
+        s = s * (1 - v.noise) + lp * v.noise * 1.6;
+        const env = Math.min(1, (i / rate) / Math.max(.001, v.attack)) * Math.pow(1 - t, 2.2);
+        if (start + i < ch.length) ch[start + i] += s * env * v.vol;
+      }
+    }
+    return buf;
+  }
+  return {
+    unlock() {
+      try {
+        if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); for (const k in DEF) buffers[k] = build(DEF[k]); }
+        if (ctx.state === 'suspended') ctx.resume();
+      } catch (e) { ctx = null; }
+    },
+    play(name) {
+      if (!ctx || !G.meta.soundOn || !buffers[name]) return;
+      try { const s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = .55; s.buffer = buffers[name]; s.connect(g).connect(ctx.destination); s.start(); } catch (e) {}
+    },
+  };
+})();
+const buzz = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} };
+
+// ---------- saving: Claude's per-person storage when available, this browser otherwise ----------
+const KEY = 'ashbound.web.v1';
+const G = { meta: newMeta(), run: null };
+const Store = (() => {
+  let doc = null, timer = null, writing = false, dirty = false;
+  async function connect() {
+    try {
+      if (!(window.claude && typeof window.claude.use === 'function')) return null;
+      const t = new Promise(r => setTimeout(() => r(null), 4000));
+      const db = await Promise.race([window.claude.use('db'), t]);
+      const user = await Promise.race([window.claude.use('user'), t]);
+      if (!db || !user) return null;
+      const id = await user.id();
+      return id ? db.doc(`data/users/${id}/ashbound`) : null;
+    } catch (e) { return null; }
+  }
+  const parse = s => { try { const o = typeof s === 'string' ? JSON.parse(s) : s; return o && o.meta ? o : null; } catch (e) { return null; } };
+  return {
+    async load() {
+      let local = null;
+      try { local = parse(localStorage.getItem(KEY)); } catch (e) {}
+      doc = await connect();
+      let remote = null;
+      if (doc) {
+        try {
+          const snap = await Promise.race([doc.get(), sleep(6000).then(() => null)]);
+          if (snap && snap.exists) { const d = snap.data(); remote = parse(d && d.save); }
+        } catch (e) {}
+      }
+      const pick = [remote, local].filter(Boolean).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
+      if (pick) { G.meta = Object.assign(newMeta(), pick.meta); G.run = pick.run || null; }
+    },
+    save() {
+      const data = { meta: G.meta, run: G.run, savedAt: Date.now() };
+      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+      clearTimeout(timer);
+      timer = setTimeout(flush, 500);
+    },
+  };
+  async function flush() {
+    if (!doc) return;
+    if (writing) { dirty = true; return; }
+    writing = true;
+    try {
+      const data = { meta: G.meta, run: G.run, savedAt: Date.now() };
+      await doc.set({ save: JSON.stringify(data), savedAt: data.savedAt });
+    } catch (e) {}
+    writing = false;
+    if (dirty) { dirty = false; flush(); }
+  }
+})();
+
+// ---------- small UI helpers ----------
+function toast(text, color = COL.paper) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.style.setProperty('--tc', color); t.textContent = text;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2300);
+}
+function banner(text, color, yFrac = .5, ms = 900) {
+  const b = document.createElement('div'); b.className = 'banner'; b.textContent = text;
+  b.style.setProperty('--bc', color); b.style.setProperty('--y', (yFrac * 100) + '%'); b.style.setProperty('--t', ms + 'ms');
+  document.body.appendChild(b); setTimeout(() => b.remove(), ms + 50);
+}
+function floatAt(el, text, color, size = 24) {
+  if (!el) return; const r = el.getBoundingClientRect();
+  const f = document.createElement('div'); f.className = 'float'; f.textContent = text; f.style.color = color; f.style.fontSize = size + 'px';
+  f.style.left = (r.left + r.width / 2) + 'px'; f.style.top = (r.top + r.height * .35) + 'px';
+  document.body.appendChild(f); setTimeout(() => f.remove(), 850);
+}
+function flash(color, a = .2) {
+  const f = document.createElement('div'); f.className = 'flash'; f.style.background = color; f.style.setProperty('--a', a);
+  document.body.appendChild(f); setTimeout(() => f.remove(), 420);
+}
+function anim(el, cls) { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function screen(html) { app.innerHTML = `<div class="screen">${html}</div>`; return app.firstElementChild; }
+function on(root, sel, fn) { root.querySelectorAll(sel).forEach(el => el.addEventListener('click', e => { Sound.play('tap'); fn(el, e); })); }
+
+function cardHTML(id, o = {}) {
+  const d = card(id), c = typeCol(d.type);
+  const ty = d.theme === 'starter' ? d.type : `${d.type} · ${THEMES[d.theme][0]}`;
+  return `<div class="card ${d.type === 'creature' ? 'cr' : ''} ${o.cls || ''}" style="--c:${c}" ${o.uid != null ? `data-uid="${o.uid}"` : ''} ${o.attr || ''}>
+<div class="cost">${d.cost}</div><div class="nm">${esc(d.name)}</div>${sigil(id, c, { cls: 'art', lw: 2.6 })}
+<div class="ty">${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx">${esc(d.text)}</div>` : ''}
+${d.type === 'creature' ? `<div class="p">${d.power}</div><div class="h">${d.health}</div>` : ''}</div>`;
+}
+function showDeck(ids, title, sub = '') {
+  const m = document.createElement('div'); m.className = 'modal';
+  const sorted = ids.slice().sort((a, b) => card(a).cost - card(b).cost || card(a).name.localeCompare(card(b).name));
+  m.innerHTML = `<div class="inner"><h2 class="center">${esc(title)}</h2>${sub ? `<div class="center dim small">${esc(sub)}</div>` : ''}
+<div class="scroll"><div class="grid">${sorted.map(id => cardHTML(id)).join('') || '<div class="dim">Empty.</div>'}</div></div>
+<button class="btn" style="margin:0 auto;min-width:160px">Close</button></div>`;
+  m.querySelector('.btn').onclick = () => m.remove();
+  document.body.appendChild(m);
+}
+
+// ---------- screens ----------
+function showMenu() {
+  const m = G.meta; let confirmAbandon = false;
+  const s = screen(`<div class="menu-hero">${sigil('ashbound-menu', COL.ember, { eye: true, glow: true, lw: 1.6 })}
+<div class="t"><h1>ASHBOUND</h1><div class="dim" style="font:600 17px var(--title)">a roguelike of ash and fire</div></div></div>
+<div class="stack">
+${G.run ? `<button class="btn primary" id="cont">Continue Run · Fight ${G.run.fight}</button><button class="btn danger" id="aband">Abandon Run</button>`
+        : `<button class="btn primary" id="begin">Begin a Run</button>`}
+<button class="btn" id="shrine">Shrine of Ash</button><button class="btn" id="how">How to Play</button>
+<button class="btn quiet" id="snd">Sound: ${m.soundOn ? 'On' : 'Off'}</button></div>
+<div class="foot">Ash ${m.ash} · Runs ${m.runs} · Victories ${m.wins}</div>`);
+  on(s, '#begin', () => {
+    G.meta.runs++; G.run = Run.create(G.meta, (Math.random() * 4294967296) >>> 0); Store.save();
+    if (!G.meta.seenTutorial) { G.meta.seenTutorial = true; Store.save(); showHowTo(true); } else showPath();
+  });
+  on(s, '#cont', () => continueRun());
+  on(s, '#aband', el => {
+    if (!confirmAbandon) { confirmAbandon = true; el.textContent = 'Tap again to abandon'; return; }
+    const banked = endRun(false); toast(`Run abandoned. ${banked} Ash banked.`, COL.ash); showMenu();
+  });
+  on(s, '#shrine', () => showShrine());
+  on(s, '#how', () => showHowTo(false));
+  on(s, '#snd', el => { G.meta.soundOn = !G.meta.soundOn; Store.save(); el.textContent = `Sound: ${G.meta.soundOn ? 'On' : 'Off'}`; });
+}
+function continueRun() {
+  const r = G.run; if (!r) return showMenu();
+  if (r.stage === 'bundle') showReward(); else if (r.stage === 'augment') showAugment(); else showPath();
+}
+function endRun(won) {
+  const r = G.run; if (!r) return 0;
+  const n = Run.ashToBank(r, won);
+  Meta.bank(G.meta, n);
+  G.meta.bestFight = Math.max(G.meta.bestFight, won ? TOTAL_FIGHTS + 1 : r.fight);
+  if (won) G.meta.wins++;
+  G.run = null; Store.save();
+  return n;
+}
+
+function showPath() {
+  const r = G.run, e = ENEMIES[Run.currentEnemy(r)];
+  const hue = Math.round(e.hue * 360), col = `hsl(${hue} 70% 68%)`;
+  const tier = ['', 'An easy start', 'A real threat', 'Deadly', 'The final guardian'][e.tier];
+  const dots = [...Array(TOTAL_FIGHTS)].map((_, i) => {
+    const f = i + 1;
+    if (f === TOTAL_FIGHTS) return `<span style="width:22px;height:22px;position:relative">${ICON.crown(f === r.fight ? COL.ember : COL.ash)}</span>`;
+    return `<span class="dot ${f < r.fight ? 'done' : ''} ${f === r.fight ? 'cur' : ''} ${AUGMENT_AFTER.includes(f) ? 'aug' : ''}"></span>`;
+  }).join('');
+  const s = screen(`<h1 class="center" style="font-size:30px">${Run.isFinal(r) ? 'The Final Pyre' : `Fight ${r.fight} of ${TOTAL_FIGHTS}`}</h1>
+<div class="track">${dots}</div><div class="center faint small" style="font-weight:700">Gold dots: an augment after that fight</div>
+<div class="foe">${sigil(Run.currentEnemy(r), col, { eye: true, glow: e.tier >= 3, lw: 1.8 })}
+<div><div class="tierline">${tier}</div><h2 style="font-size:30px">${esc(e.name)}</h2><div class="dim" style="font:600 16px var(--title)">${esc(e.title)}</div></div>
+<button class="btn primary" id="fight" style="min-width:220px;min-height:54px;font-size:19px">Fight</button></div>
+<div class="row between"><div class="row" style="font-weight:700"><span style="width:18px">${ICON.heart(COL.blood)}</span>${r.maxHP} HP · full heal each fight</div>
+<button class="btn" id="deck" style="min-height:38px;font-size:14px">Deck ${r.deck.length}</button></div>
+<div class="label" style="margin-top:8px">Augments</div>
+<div class="chips" style="min-height:40px;margin-top:4px">${r.augments.length ? r.augments.map(a => `<div class="medal" data-a="${a}">${sigil(a, COL.gold, { ring: false, lw: 3 })}</div>`).join('') : '<span class="faint small" style="font-weight:700">None yet</span>'}</div>
+<button class="btn quiet" id="quit" style="margin:4px auto 0">Save & Quit</button>`);
+  on(s, '#fight', () => startBattle());
+  on(s, '#deck', () => showDeck(r.deck, 'Your Deck'));
+  on(s, '.medal', el => { const a = AUGMENTS[el.dataset.a]; toast(`${a[0]}: ${a[1]}`, COL.gold); });
+  on(s, '#quit', () => { Store.save(); showMenu(); });
+}
+
+// ---------- battle ----------
+let B = null, view = null;
+function startBattle() {
+  const r = G.run;
+  B = new Battle(Run.currentEnemy(r), r.fight, r.deck, r.maxHP, r.augments, Meta.burnBonus(G.meta), Run.nextSeed(r));
+  B.captureSnaps = true;
+  Store.save();
+  view = { sel: null, busy: false, done: false, known: new Set() };
+  const e = B.enemy, col = `hsl(${Math.round(e.hue * 360)} 70% 68%)`;
+  const s = screen(`<div class="bt" id="bt">
+<div class="etop"><div class="round"><span class="label">ROUND</span><b id="rnd">1</b><span class="faint" style="font:700 9px var(--body)">Fight ${B.fight} of ${TOTAL_FIGHTS}</span></div>
+<div class="ename"><h2>${esc(e.name)}</h2><div class="dim" style="font:700 10.5px var(--body)">${e.tier === 4 ? 'FINAL · ' : ''}${esc(e.title)}</div></div>
+<div class="intent"><div class="label" style="color:var(--blood);font-size:9px">NEXT</div><b id="it"></b><span id="id"></span></div></div>
+<div><div class="cmd" id="cmd">${sigil(B.enemyId, col, { eye: true, glow: e.tier >= 3, lw: 2 })}<div class="eblock" id="eb"></div></div>
+<div class="hpbar"><i id="ehp"></i><b id="ehpt"></b></div><div class="estatus" id="est"></div></div>
+<div class="board">
+<div class="lane"><span></span><div class="slot enemy" id="slot-enemy"><span class="empty">its minion</span></div><span></span></div>
+<div class="divider"></div>
+<div class="lane"><div><button class="side-btn" id="stoke">${ICON.ash(COL.ash)}<b>STOKE</b></button><div class="side-cap" id="stokecap"></div></div>
+<div class="slot" id="slot-player"><span class="empty">your creature</span></div>
+<div><div class="pips" id="pips"></div><button class="side-btn" id="burn">${ICON.flame(COL.ember)}<b id="burnl">BURN</b></button></div></div>
+<div><div class="arts" id="arts"></div><div class="center faint" style="font:700 8px var(--body)">ARTIFACTS</div></div>
+</div>
+<div class="status"><div class="stat" id="hp"></div><div class="stat" id="blk"></div><div class="stat energy" id="en"></div>
+<button class="btn primary endturn" id="end">End Turn</button></div>
+<div class="piles"><button id="pd"></button><span class="hint" id="hint"></span><button id="pu"></button></div>
+<div class="hand" id="hand"></div></div>`);
+  $('#end').onclick = () => { Sound.play('tap'); doEndTurn(); };
+  $('#stoke').onclick = () => { Sound.play('tap'); doStoke(); };
+  $('#burn').onclick = () => { Sound.play('tap'); doBurn(); };
+  $('#pd').onclick = () => showDeck(B.drawPile.map(c => c.id), 'Draw Pile', 'Shown sorted, not in draw order');
+  $('#pu').onclick = () => showDeck(B.discard.map(c => c.id), 'Used Pile');
+  s.addEventListener('click', e => { if (!e.target.closest('.card') && view.sel != null) { view.sel = null; renderHand(B.snapshot()); } });
+  $('#cmd').onclick = () => { const [t, d] = B.intentText(); toast(`${e.name}: ${B.enemyHP}/${B.enemyMaxHP} HP. Next: ${t} (${d}).`, COL.blood); };
+  render(B.snapshot());
+  B.start();
+  play(B.takeEvents());
+}
+
+function allyHTML(a) {
+  if (!a) return '';
+  const col = a.side === 'player' ? COL.paper : COL.blood;
+  return `<div class="ally ${a.side}">${a.fresh ? '<span class="fresh">attacks next turn</span>' : ''}${sigil(a.cardID || a.minion || a.name, col, { eye: a.side === 'enemy', lw: 2.4 })}
+<div class="an">${esc(a.name)}</div><div class="p">${a.power}</div><div class="h">${Math.max(0, a.health)}</div></div>`;
+}
+function render(sn) {
+  $('#rnd').textContent = sn.round || 1;
+  $('#it').textContent = sn.intent[0]; $('#id').textContent = sn.intent[1];
+  $('#ehp').style.width = Math.max(0, Math.min(100, 100 * sn.enemyHP / sn.enemyMaxHP)) + '%';
+  $('#ehpt').textContent = `${Math.max(0, sn.enemyHP)} / ${sn.enemyMaxHP}`;
+  $('#est').textContent = sn.status;
+  $('#eb').innerHTML = sn.enemyBlock > 0 ? `<div class="stat" style="font-size:16px"><span style="width:20px">${ICON.shield(COL.frost)}</span>${sn.enemyBlock}</div>` : '';
+  for (const side of ['player', 'enemy']) {
+    const slot = $('#slot-' + side), a = sn.allies[side];
+    const cur = slot.querySelector('.ally');
+    if (!a) { if (cur) cur.remove(); slot.querySelector('.empty').style.display = ''; continue; }
+    slot.querySelector('.empty').style.display = 'none';
+    if (cur && +cur.dataset.id === a.id) {
+      cur.querySelector('.p').textContent = a.power; cur.querySelector('.h').textContent = Math.max(0, a.health);
+      const fr = cur.querySelector('.fresh'); if (fr && !a.fresh) fr.remove();
+    } else {
+      if (cur) cur.remove();
+      slot.insertAdjacentHTML('beforeend', allyHTML(a));
+      const n = slot.querySelector('.ally'); n.dataset.id = a.id; anim(n, 'pop');
+    }
+  }
+  $('#hp').className = 'stat' + (sn.hp / sn.maxHP < .3 ? ' low' : '');
+  $('#hp').innerHTML = `<span style="width:18px">${ICON.heart(COL.blood)}</span>${Math.max(0, sn.hp)}/${sn.maxHP}`;
+  $('#blk').innerHTML = sn.block > 0 ? `<span style="width:20px">${ICON.shield(COL.frost)}</span>${sn.block}` : '';
+  $('#en').innerHTML = `<span style="width:18px">${ICON.flame(COL.ember)}</span>${sn.energy}/${sn.maxE}`;
+  $('#pips').innerHTML = [...Array(sn.ashNeeded)].map((_, i) => `<i class="${i < sn.ash ? 'on' : ''}"></i>`).join('');
+  const burn = $('#burn'); burn.className = 'side-btn ' + (sn.canBurn ? 'ready' : 'off');
+  $('#burnl').textContent = sn.canBurn ? `BURN ${sn.burnDamage}` : 'BURN';
+  $('#stoke').className = 'side-btn ' + (sn.canStoke ? '' : 'off');
+  $('#stokecap').textContent = `${sn.stokePrice} energy → 1 Ash`;
+  $('#arts').innerHTML = [...Array(MAX_ARTIFACTS)].map((_, i) => {
+    const a = sn.artifacts[i];
+    return a ? `<div class="art-slot has" data-uid="${a.uid}" data-id="${a.id}">${sigil(a.id, COL.gold, { ring: false, lw: 3 })}${a.charges > 0 ? `<span class="ch">${a.charges}</span>` : ''}</div>` : '<div class="art-slot"></div>';
+  }).join('');
+  document.querySelectorAll('#arts .art-slot.has').forEach(el => el.onclick = () => { const d = card(el.dataset.id); toast(`${d.name}: ${d.text}`, COL.gold); });
+  $('#pd').textContent = `Deck ${sn.drawCount}`; $('#pu').textContent = `Used ${sn.discardCount}`;
+  renderHand(sn);
+}
+function renderHand(sn) {
+  const h = $('#hand'); if (!h) return;
+  const n = sn.hand.length, cw = h.querySelector('.card')?.offsetWidth || Math.min(76, (innerWidth - 18) / 5.15);
+  const avail = Math.min(innerWidth, 520) - 20;
+  const ov = n > 1 ? Math.min(4, (avail - n * cw) / (n - 1)) : 0;
+  h.style.setProperty('--ov', ov + 'px');
+  h.innerHTML = sn.hand.map(c => {
+    const playable = !view.busy && B.outcome === 'ongoing' && card(c.id).cost <= sn.energy;
+    const cls = [view.sel === c.uid ? 'sel' : '', playable ? '' : 'off', view.known.has(c.uid) ? '' : 'new'].join(' ');
+    return cardHTML(c.id, { uid: c.uid, cls, attr: 'role="button" tabindex="0"' });
+  }).join('');
+  sn.hand.forEach(c => view.known.add(c.uid));
+  h.querySelectorAll('.card').forEach(el => el.onclick = e => { e.stopPropagation(); tapCard(+el.dataset.uid, el); });
+  $('#hint').textContent = view.sel != null ? 'Tap again to play' : '';
+}
+function tapCard(uid, el) {
+  if (view.busy || view.done) return;
+  const c = B.hand.find(x => x.uid === uid); if (!c) return;
+  const why = B.blockedReason(c);
+  if (why) { anim(el, 'shake'); toast(why, COL.blood); buzz(30); view.sel = null; renderHand(B.snapshot()); return; }
+  if (view.sel === uid) {
+    view.sel = null; buzz(10);
+    Sound.play(card(c.id).type === 'creature' ? 'summon' : 'card');
+    B.play(uid); play(B.takeEvents());
+  } else { view.sel = uid; Sound.play('card'); renderHand(B.snapshot()); }
+}
+function doEndTurn() { if (view.busy || view.done) return; view.sel = null; buzz(15); B.endTurn(); play(B.takeEvents()); }
+function doStoke() {
+  if (view.busy || view.done) return;
+  if (!B.canStoke) { toast(B.stokedThisTurn ? 'You already stoked this turn.' : B.ash >= B.ashNeeded ? 'Your Ash is full. Burn it!' : `Stoke costs ${B.stokePrice} energy.`, COL.ash); return; }
+  B.stoke(); play(B.takeEvents());
+}
+function doBurn() {
+  if (view.busy || view.done) return;
+  if (!B.canBurn) { toast(`Burn is ready at ${B.ashNeeded} Ash. Gain Ash when your creature dies, or Stoke.`, COL.ash); return; }
+  buzz(40); B.useBurn(); play(B.takeEvents());
+}
+const DUR = { allyIn: 260, allyAttacks: 220, allyHit: 200, allyChanged: 100, allyDied: 280, faceHit: 240, block: 60, healed: 150, ash: 100,
+              energy: 0, hand: 40, artifacts: 150, artifactFires: 200, status: 80, enemyActs: 600, burn: 550, info: 480 };
+async function play(events) {
+  view.busy = true; $('#end').disabled = true;
+  for (const ev of events) {
+    const sn = ev.snap;
+    switch (ev.type) {
+      case 'allyAttacks': anim($(`#slot-${ev.side} .ally`), ev.side === 'player' ? 'lunge-up' : 'lunge-down'); break;
+      case 'allyHit': { const n = $(`#slot-${ev.side} .ally`); anim(n, 'shake'); floatAt(n, `-${ev.amount}`, COL.blood); Sound.play('hit'); break; }
+      case 'allyDied': {
+        const n = $(`#slot-${ev.side} .ally`);
+        if (n) { n.classList.add('die'); if (ev.side === 'player') floatAt(n, '+1 Ash', COL.ash, 16); await sleep(240); }
+        Sound.play('death'); break;
+      }
+      case 'faceHit':
+        if (ev.side === 'enemy') { anim($('#cmd'), 'shake'); floatAt($('#cmd'), `-${ev.amount}`, COL.blood, 28); }
+        else { anim($('#hp'), 'shake'); floatAt($('#hp'), `-${ev.amount}`, COL.blood); flash(COL.blood, .16); buzz(25); }
+        Sound.play('hit'); break;
+      case 'healed': floatAt(ev.side === 'enemy' ? $('#cmd') : $('#hp'), `+${ev.amount}`, COL.heal); break;
+      case 'block': if (ev.value > 0) Sound.play('shield'); break;
+      case 'ash': Sound.play('ash'); break;
+      case 'allyIn': Sound.play('summon'); break;
+      case 'enemyActs': anim($('#cmd'), 'pop'); banner(ev.text, COL.blood, .3, 700); Sound.play('enemy'); break;
+      case 'burn': flash(COL.ember, .35); banner(`BURN!  ${ev.amount}`, COL.ember, .55, 700); Sound.play('burn'); break;
+      case 'info': banner(ev.text, COL.paper, .45, 650); break;
+      case 'artifacts': Sound.play('shield'); break;
+    }
+    if (sn) render(sn);
+    if (ev.type === 'artifactFires') anim($(`#arts [data-uid="${ev.uid}"]`), 'pop');
+    if (ev.type === 'allyChanged') anim($('#slot-player .ally .p'), 'pop');
+    const d = DUR[ev.type] || 0; if (d) await sleep(d);
+  }
+  view.busy = false;
+  render(B.snapshot());
+  $('#end').disabled = B.outcome !== 'ongoing';
+  if (B.outcome === 'won') winBattle(); else if (B.outcome === 'lost') loseBattle();
+}
+async function winBattle() {
+  if (view.done) return; view.done = true;
+  Sound.play('victory'); buzz(60);
+  const final = Run.isFinal(G.run);
+  $('#cmd svg').style.transition = 'transform .6s, opacity .6s'; $('#cmd svg').style.transform = 'scale(1.6)'; $('#cmd svg').style.opacity = 0;
+  banner(final ? 'The Final Pyre falls!' : 'Victory', COL.ember, .5, 1300);
+  if (final) G.run.ashEarned += B.ashGainedTotal; else Run.winFight(G.run, B, G.meta);
+  Store.save();
+  await sleep(1500);
+  if (final) { const fight = G.run.fight; const banked = endRun(true); Sound.play('unlock'); showEnd(true, fight, banked, null); }
+  else showReward();
+}
+async function loseBattle() {
+  if (view.done) return; view.done = true;
+  Sound.play('defeat'); flash(COL.blood, .4); buzz(200);
+  banner('The pyre claims you.', COL.blood, .5, 1600);
+  G.run.ashEarned += B.ashGainedTotal;
+  const fight = G.run.fight, killer = B.enemy.name;
+  await sleep(2000);
+  const banked = endRun(false);
+  showEnd(false, fight, banked, killer);
+}
+
+// ---------- rewards ----------
+function showReward() {
+  const r = G.run; let chosen = null;
+  const bundles = r.pendingBundles.map((b, i) => `<div class="panel" data-i="${i}"><div class="row between"><b style="font:700 15px var(--body)">${THEMES[b.theme][0]}</b><span class="dim small">${THEMES[b.theme][1]}</span></div>
+<div class="cards">${b.cards.map(id => cardHTML(id, { cls: 'big' })).join('')}</div></div>`).join('');
+  const art = r.pendingArtifact ? `<div class="panel gold" data-i="-1"><div class="label" style="color:var(--gold)">OR ONE LEGENDARY ARTIFACT</div>
+<div class="row" style="align-items:flex-start;margin-top:8px">${cardHTML(r.pendingArtifact, { cls: 'big' })}<div class="small" style="font-weight:600">One card instead of three. Artifacts stay in play once cast.<br><br><b>${esc(card(r.pendingArtifact).name)}:</b> ${esc(card(r.pendingArtifact).text)}</div></div></div>` : '';
+  const s = screen(`<h1 class="center" style="color:var(--ember);font-size:34px">Victory</h1>
+<div class="center dim small" style="font-weight:700;margin:4px 0 8px">Take a bundle of 3 cards, or one Legendary Artifact.</div>
+<div class="scroll"><div class="list">${bundles}${art}</div></div>
+<div class="stack" style="padding-top:8px"><button class="btn primary" id="take" disabled>Take Bundle</button><button class="btn quiet" id="skip">Skip</button></div>`);
+  on(s, '.panel', el => {
+    chosen = +el.dataset.i;
+    s.querySelectorAll('.panel').forEach(p => p.classList.toggle('sel', p === el));
+    const t = $('#take'); t.disabled = false; t.textContent = chosen === -1 ? 'Take Artifact' : 'Take Bundle'; t.className = 'btn ' + (chosen === -1 ? 'gold' : 'primary');
+  });
+  const finish = take => {
+    let aug;
+    if (take && chosen === -1) aug = Run.takeArtifact(r, G.meta);
+    else aug = Run.takeBundle(r, take ? r.pendingBundles[chosen] : null, G.meta);
+    if (take) Sound.play('unlock');
+    Store.save();
+    aug ? showAugment() : showPath();
+  };
+  on(s, '#take', () => finish(true));
+  on(s, '#skip', () => finish(false));
+}
+function showAugment() {
+  const r = G.run; let chosen = null;
+  const s = screen(`<div class="center" style="padding-top:6px"><div style="width:96px;margin:0 auto;animation:spin 40s linear infinite">${sigil('augment-choice', COL.gold, { glow: true, lw: 1.8 })}</div>
+<h1 style="color:var(--gold);font-size:30px;margin-top:6px">Choose an Augment</h1><div class="dim small" style="font-weight:700;margin:4px 0 10px">It lasts for the rest of this run.</div></div>
+<div class="scroll"><div class="list">${r.pendingAugments.map(a => `<div class="panel gold aug" data-a="${a}"><div class="medal">${sigil(a, COL.gold, { ring: false, lw: 3 })}</div>
+<div><b>${AUGMENTS[a][0]}</b><span style="font-weight:600;font-size:14px">${AUGMENTS[a][1]}</span></div></div>`).join('')}</div></div>
+<div class="stack" style="padding-top:8px"><button class="btn gold" id="take" disabled>Take Augment</button></div>`);
+  on(s, '.panel', el => { chosen = el.dataset.a; s.querySelectorAll('.panel').forEach(p => p.classList.toggle('sel', p === el)); $('#take').disabled = false; });
+  on(s, '#take', () => { Run.takeAugment(r, chosen); Sound.play('unlock'); Store.save(); showPath(); });
+}
+
+// ---------- end, shrine, how to ----------
+function showEnd(won, fight, banked, killer) {
+  const s = screen(`<div class="menu-hero">${sigil(won ? 'victory' : 'defeat', won ? COL.ember : COL.blood, { eye: !won, glow: true, lw: 1.6 })}
+<div class="t"><h1 style="font-size:40px">${won ? 'Unbound' : 'Ashes to Ashes'}</h1>
+<div class="dim" style="font:600 17px var(--title);max-width:280px;margin:6px auto 0">${won ? 'You walked through every fire and came out the other side.' : `Felled by ${esc(killer)} in fight ${fight} of ${TOTAL_FIGHTS}.`}</div></div></div>
+<div class="center" style="margin-bottom:16px"><div class="dim">Fights won: <b style="color:var(--paper)">${won ? TOTAL_FIGHTS : fight - 1}</b></div>
+<div style="font:700 24px var(--body);color:var(--ash);margin-top:8px">+${banked} Ash banked</div><div class="dim small">Shrine total: ${G.meta.ash}</div></div>
+<div class="stack"><button class="btn primary" id="shrine">Visit the Shrine</button><button class="btn" id="menu">Main Menu</button></div>`);
+  setTimeout(() => Sound.play('ash'), 400);
+  on(s, '#shrine', () => showShrine());
+  on(s, '#menu', () => showMenu());
+}
+function showShrine() {
+  const m = G.meta;
+  const rows = UNLOCKS.map(u => {
+    const owned = m.unlocked.includes(u.id), locked = !owned && u.requires && !m.unlocked.includes(u.requires);
+    const req = locked ? UNLOCKS.find(x => x.id === u.requires).name : '';
+    return `<div class="panel unlock" style="cursor:default;${owned ? 'border-color:rgba(255,122,58,.5)' : ''}"><div><b style="${owned ? 'color:var(--ember)' : ''}">${u.name}</b>
+<span class="dim small" style="font-weight:600">${locked ? `Requires ${req}.` : u.detail}</span></div>
+${owned ? '<span class="owned">Offered</span>' : `<button class="btn ${Meta.canBuy(m, u) ? 'primary' : ''}" data-u="${u.id}" ${Meta.canBuy(m, u) ? '' : 'disabled'}>${u.cost} Ash</button>`}</div>`;
+  }).join('');
+  const s = screen(`<h1 class="center" style="font-size:32px">Shrine of Ash</h1><div class="center" style="font:700 16px var(--body);color:var(--ash);margin:4px 0 10px">${m.ash} Ash to offer</div>
+<div class="scroll"><div class="list">${rows}</div><div class="center faint small" style="font-weight:700;padding:8px 0">Runs ${m.runs} · Victories ${m.wins} · Best fight ${Math.min(m.bestFight, TOTAL_FIGHTS)}</div></div>
+<div class="stack" style="padding-top:8px"><button class="btn" id="back">Back</button></div>`);
+  on(s, '[data-u]', el => { const u = UNLOCKS.find(x => x.id === el.dataset.u); if (Meta.buy(G.meta, u)) { Sound.play('unlock'); buzz(40); Store.save(); showShrine(); } });
+  on(s, '#back', () => showMenu());
+}
+function showHowTo(thenPath) {
+  const sections = [
+    ['The run', 'Face 8 opponents in a row, each tougher than the last. You fully heal between fights. After each win, take a bundle of 3 cards or one Legendary Artifact. After fights 2, 4 and 6, pick a powerful Augment. When a run ends, your Ash unlocks permanent upgrades at the Shrine.'],
+    ['Energy grows', 'Round 1 gives you 1 energy, round 2 gives 2, and so on up to 10. You keep your hand between turns and draw a card each turn.'],
+    ['Three kinds of card', 'Creatures stand in front of you, one at a time. Spells happen once. Artifacts stay in play and keep working; you can hold 3, and a 4th replaces the oldest. Tap a card to pick it up, then tap it again to play it.'],
+    ['Your creature', 'Enemy hits land on your creature first, and anything left over hits you. At the end of your turn, it attacks. Playing a new creature replaces the old one.'],
+    ['Ash, Stoke and Burn', 'You gain 1 Ash whenever your creature dies. You can also Stoke: spend 2 energy for 1 Ash, once per turn. When your Ash is full, tap Burn for a big hit straight to the enemy.'],
+    ['Scorch', 'Damage over time: at the start of your turn the enemy takes its Scorch as damage, ignoring Block, then Scorch drops by 1.'],
+    ['The enemy', 'The box by the enemy shows exactly what it will do next. Watch for Lunge (skips your creature), Wither (shrinks your creature’s attack) and Shatter (breaks your oldest artifact). Hex spells fight back: Weaken, Rot, Expose, Turncoat and Smother.'],
+  ];
+  const s = screen(`<h1 class="center" style="font-size:32px">How to Play</h1>
+<div class="scroll howto">${sections.map(([h, p]) => `<h3>${h}</h3><p>${p}</p>`).join('')}
+<h3>Glossary</h3><div class="gl">${GLOSSARY.map(([k, v]) => `<b>${k}</b><span class="dim">${v}</span>`).join('')}</div><div style="height:12px"></div></div>
+<div class="stack" style="padding-top:8px"><button class="btn ${thenPath ? 'primary' : ''}" id="go">${thenPath ? 'Begin' : 'Back'}</button></div>`);
+  on(s, '#go', () => thenPath ? showPath() : showMenu());
+}
+
+// ---------- ambience ----------
+function embers() {
+  const box = $('#embers'); if (!box || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  setInterval(() => {
+    if (document.hidden || box.childElementCount > 30) return;
+    const m = document.createElement('i'); m.className = 'mote';
+    const d = 5 + Math.random() * 4;
+    m.style.left = Math.random() * 100 + '%'; m.style.setProperty('--dx', (Math.random() * 80 - 40) + 'px');
+    m.style.animationDuration = d + 's'; m.style.background = Math.random() < .5 ? COL.ember : COL.gold;
+    const sz = 1.5 + Math.random() * 3; m.style.width = m.style.height = sz + 'px';
+    box.appendChild(m); setTimeout(() => m.remove(), d * 1000);
+  }, 260);
+}
+
+document.addEventListener('pointerdown', () => Sound.unlock(), { passive: true });
+(async () => {
+  app.innerHTML = '<div class="loading">Kindling…</div>';
+  embers();
+  await Store.load();
+  showMenu();
+})();
+}
+
+</script>
+
+</body></html>
