@@ -1,5 +1,5 @@
 {
-const { card, THEMES, AUGMENTS, ENEMIES, Battle, UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY, RNG } = Core;
+const { card, THEMES, AUGMENTS, ENEMIES, Battle, UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY, RNG, textParts, cardText, stats, MAX_STARS } = Core;
 const $ = s => document.querySelector(s);
 const app = $('#app');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -123,7 +123,7 @@ const Store = (() => {
         } catch (e) {}
       }
       const pick = [remote, local].filter(Boolean).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
-      if (pick) { G.meta = Object.assign(newMeta(), pick.meta); G.run = pick.run || null; }
+      if (pick) { G.meta = Object.assign(newMeta(), pick.meta); G.run = Run.fix(pick.run || null); }
     },
     save() {
       const data = { meta: G.meta, run: G.run, savedAt: Date.now() };
@@ -156,9 +156,10 @@ function banner(text, color, yFrac = .5, ms = 900) {
   b.style.setProperty('--bc', color); b.style.setProperty('--y', (yFrac * 100) + '%'); b.style.setProperty('--t', ms + 'ms');
   document.body.appendChild(b); setTimeout(() => b.remove(), ms + 50);
 }
-function floatAt(el, text, color, size = 24) {
+const numSize = n => Math.round(18 + Math.min(34, 13 * Math.log10(n + 1)));
+function floatAt(el, text, color, size = 24, cls = '') {
   if (!el) return; const r = el.getBoundingClientRect();
-  const f = document.createElement('div'); f.className = 'float'; f.textContent = text; f.style.color = color; f.style.fontSize = size + 'px';
+  const f = document.createElement('div'); f.className = 'float ' + cls; f.textContent = text; f.style.color = color; f.style.fontSize = size + 'px';
   f.style.left = (r.left + r.width / 2) + 'px'; f.style.top = (r.top + r.height * .35) + 'px';
   document.body.appendChild(f); setTimeout(() => f.remove(), 850);
 }
@@ -171,18 +172,21 @@ function screen(html) { app.innerHTML = `<div class="screen">${html}</div>`; ret
 function on(root, sel, fn) { root.querySelectorAll(sel).forEach(el => el.addEventListener('click', e => { Sound.play('tap'); fn(el, e); })); }
 
 function cardHTML(id, o = {}) {
-  const d = card(id), c = typeCol(d.type);
+  const d = card(id), c = typeCol(d.type), lvl = o.lvl || 0;
   const ty = d.theme === 'starter' ? d.type : `${d.type} · ${THEMES[d.theme][0]}`;
-  return `<div class="card ${d.type === 'creature' ? 'cr' : ''} ${o.cls || ''}" style="--c:${c}" ${o.uid != null ? `data-uid="${o.uid}"` : ''} ${o.attr || ''}>
+  const tx = textParts(id, lvl).map(p => p.t != null ? esc(p.t) : p.up ? `<b class="up">${p.n}</b>` : p.n).join('');
+  const [pw, hp] = stats(id, lvl), up = lvl > 0 ? ' up' : '';
+  return `<div class="card ${d.type === 'creature' ? 'cr' : ''} ${lvl ? 'lv' : ''} ${o.cls || ''}" style="--c:${c}" ${o.uid != null ? `data-uid="${o.uid}"` : ''} ${o.attr || ''}>
 <div class="cost">${d.cost}</div><div class="nm">${esc(d.name)}</div>${sigil(id, c, { cls: 'art', lw: 2.6 })}
-<div class="ty">${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx">${esc(d.text)}</div>` : ''}
-${d.type === 'creature' ? `<div class="p">${d.power}</div><div class="h">${d.health}</div>` : ''}</div>`;
+<div class="ty">${lvl ? `<span class="stars">${'★'.repeat(lvl)}</span>` : ''}${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx">${tx}</div>` : ''}
+${d.type === 'creature' ? `<div class="p${up}">${pw}</div><div class="h${up}">${hp}</div>` : ''}</div>`;
 }
-function showDeck(ids, title, sub = '') {
+const asEntry = e => typeof e === 'string' ? { id: e, lvl: 0 } : e;
+function showDeck(entries, title, sub = '') {
   const m = document.createElement('div'); m.className = 'modal';
-  const sorted = ids.slice().sort((a, b) => card(a).cost - card(b).cost || card(a).name.localeCompare(card(b).name));
+  const sorted = entries.map(asEntry).sort((a, b) => card(a.id).cost - card(b.id).cost || card(a.id).name.localeCompare(card(b.id).name) || b.lvl - a.lvl);
   m.innerHTML = `<div class="inner"><h2 class="center">${esc(title)}</h2>${sub ? `<div class="center dim small">${esc(sub)}</div>` : ''}
-<div class="scroll"><div class="grid">${sorted.map(id => cardHTML(id)).join('') || '<div class="dim">Empty.</div>'}</div></div>
+<div class="scroll"><div class="grid">${sorted.map(e => cardHTML(e.id, { lvl: e.lvl })).join('') || '<div class="dim">Empty.</div>'}</div></div>
 <button class="btn" style="margin:0 auto;min-width:160px">Close</button></div>`;
   m.querySelector('.btn').onclick = () => m.remove();
   document.body.appendChild(m);
@@ -214,13 +218,15 @@ ${G.run ? `<button class="btn primary" id="cont">Continue Run · Fight ${G.run.f
 }
 function continueRun() {
   const r = G.run; if (!r) return showMenu();
-  if (r.stage === 'bundle') showReward(); else if (r.stage === 'augment') showAugment(); else showPath();
+  Run.fix(r);
+  if (r.stage === 'bundle') showReward(); else if (r.stage === 'empower') showEmpower(); else if (r.stage === 'augment') showAugment(); else showPath();
 }
 function endRun(won) {
   const r = G.run; if (!r) return 0;
   const n = Run.ashToBank(r, won);
   Meta.bank(G.meta, n);
   G.meta.bestFight = Math.max(G.meta.bestFight, won ? TOTAL_FIGHTS + 1 : r.fight);
+  G.meta.bestTurn = Math.max(G.meta.bestTurn || 0, r.bestTurn || 0);
   if (won) G.meta.wins++;
   G.run = null; Store.save();
   return n;
@@ -246,7 +252,7 @@ function showPath() {
 <div class="chips" style="min-height:40px;margin-top:4px">${r.augments.length ? r.augments.map(a => `<div class="medal" data-a="${a}">${sigil(a, COL.gold, { ring: false, lw: 3 })}</div>`).join('') : '<span class="faint small" style="font-weight:700">None yet</span>'}</div>
 <button class="btn quiet" id="quit" style="margin:4px auto 0">Save & Quit</button>`);
   on(s, '#fight', () => startBattle());
-  on(s, '#deck', () => showDeck(r.deck, 'Your Deck'));
+  on(s, '#deck', () => showDeck(Run.deckCards(r), 'Your Deck', 'Gold numbers have grown from Empower'));
   on(s, '.medal', el => { const a = AUGMENTS[el.dataset.a]; toast(`${a[0]}: ${a[1]}`, COL.gold); });
   on(s, '#quit', () => { Store.save(); showMenu(); });
 }
@@ -255,16 +261,17 @@ function showPath() {
 let B = null, view = null;
 function startBattle() {
   const r = G.run;
-  B = new Battle(Run.currentEnemy(r), r.fight, r.deck, r.maxHP, r.augments, Meta.burnBonus(G.meta), Run.nextSeed(r));
+  Run.fix(r);
+  B = new Battle(Run.currentEnemy(r), r.fight, Run.deckCards(r), r.maxHP, r.augments, Meta.burnBonus(G.meta), Run.nextSeed(r));
   B.captureSnaps = true;
   Store.save();
-  view = { sel: null, busy: false, done: false, known: new Set() };
+  view = { sel: null, busy: false, done: false, known: new Set(), lastCombo: 0 };
   const e = B.enemy, col = `hsl(${Math.round(e.hue * 360)} 70% 68%)`;
   const s = screen(`<div class="bt" id="bt">
 <div class="etop"><div class="round"><span class="label">ROUND</span><b id="rnd">1</b><span class="faint" style="font:700 9px var(--body)">Fight ${B.fight} of ${TOTAL_FIGHTS}</span></div>
 <div class="ename"><h2>${esc(e.name)}</h2><div class="dim" style="font:700 10.5px var(--body)">${e.tier === 4 ? 'FINAL · ' : ''}${esc(e.title)}</div></div>
 <div class="intent"><div class="label" style="color:var(--blood);font-size:9px">NEXT</div><b id="it"></b><span id="id"></span></div></div>
-<div><div class="cmd" id="cmd">${sigil(B.enemyId, col, { eye: true, glow: e.tier >= 3, lw: 2 })}<div class="eblock" id="eb"></div></div>
+<div style="position:relative"><div class="cmd" id="cmd">${sigil(B.enemyId, col, { eye: true, glow: e.tier >= 3, lw: 2 })}<div class="eblock" id="eb"></div></div><div class="combo" id="combo" style="opacity:0"><b>0</b><span>THIS TURN</span></div>
 <div class="hpbar"><i id="ehp"></i><b id="ehpt"></b></div><div class="estatus" id="est"></div></div>
 <div class="board">
 <div class="lane"><span></span><div class="slot enemy" id="slot-enemy"><span class="empty">its minion</span></div><span></span></div>
@@ -281,8 +288,8 @@ function startBattle() {
   $('#end').onclick = () => { Sound.play('tap'); doEndTurn(); };
   $('#stoke').onclick = () => { Sound.play('tap'); doStoke(); };
   $('#burn').onclick = () => { Sound.play('tap'); doBurn(); };
-  $('#pd').onclick = () => showDeck(B.drawPile.map(c => c.id), 'Draw Pile', 'Shown sorted, not in draw order');
-  $('#pu').onclick = () => showDeck(B.discard.map(c => c.id), 'Used Pile');
+  $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Shown sorted, not in draw order');
+  $('#pu').onclick = () => showDeck(B.discard, 'Used Pile');
   s.addEventListener('click', e => { if (!e.target.closest('.card') && view.sel != null) { view.sel = null; renderHand(B.snapshot()); } });
   $('#cmd').onclick = () => { const [t, d] = B.intentText(); toast(`${e.name}: ${B.enemyHP}/${B.enemyMaxHP} HP. Next: ${t} (${d}).`, COL.blood); };
   render(B.snapshot());
@@ -301,6 +308,14 @@ function render(sn) {
   $('#it').textContent = sn.intent[0]; $('#id').textContent = sn.intent[1];
   $('#ehp').style.width = Math.max(0, Math.min(100, 100 * sn.enemyHP / sn.enemyMaxHP)) + '%';
   $('#ehpt').textContent = `${Math.max(0, sn.enemyHP)} / ${sn.enemyMaxHP}`;
+  const cb = $('#combo'), td = sn.turnDamage || 0;
+  if (cb) {
+    if (td !== view.lastCombo) {
+      cb.style.opacity = td > 0 ? 1 : 0;
+      if (td > 0) { cb.querySelector('b').textContent = td; cb.style.setProperty('--cs', Math.round(22 + Math.min(30, Math.sqrt(td) * 3)) + 'px'); cb.classList.toggle('hot', td >= 40); anim(cb.querySelector('b'), 'pop'); }
+      view.lastCombo = td;
+    }
+  }
   $('#est').textContent = sn.status;
   $('#eb').innerHTML = sn.enemyBlock > 0 ? `<div class="stat" style="font-size:16px"><span style="width:20px">${ICON.shield(COL.frost)}</span>${sn.enemyBlock}</div>` : '';
   for (const side of ['player', 'enemy']) {
@@ -328,9 +343,9 @@ function render(sn) {
   $('#stokecap').textContent = `${sn.stokePrice} energy → 1 Ash`;
   $('#arts').innerHTML = [...Array(MAX_ARTIFACTS)].map((_, i) => {
     const a = sn.artifacts[i];
-    return a ? `<div class="art-slot has" data-uid="${a.uid}" data-id="${a.id}">${sigil(a.id, COL.gold, { ring: false, lw: 3 })}${a.charges > 0 ? `<span class="ch">${a.charges}</span>` : ''}</div>` : '<div class="art-slot"></div>';
+    return a ? `<div class="art-slot has" data-uid="${a.uid}" data-id="${a.id}" data-lvl="${a.lvl || 0}">${sigil(a.id, COL.gold, { ring: false, lw: 3 })}${a.charges > 0 ? `<span class="ch">${a.charges}</span>` : ''}</div>` : '<div class="art-slot"></div>';
   }).join('');
-  document.querySelectorAll('#arts .art-slot.has').forEach(el => el.onclick = () => { const d = card(el.dataset.id); toast(`${d.name}: ${d.text}`, COL.gold); });
+  document.querySelectorAll('#arts .art-slot.has').forEach(el => el.onclick = () => { const d = card(el.dataset.id), l = +el.dataset.lvl; toast(`${d.name}${l ? ' ' + '★'.repeat(l) : ''}: ${cardText(d.id, l)}`, COL.gold); });
   $('#pd').textContent = `Deck ${sn.drawCount}`; $('#pu').textContent = `Used ${sn.discardCount}`;
   renderHand(sn);
 }
@@ -343,7 +358,7 @@ function renderHand(sn) {
   h.innerHTML = sn.hand.map(c => {
     const playable = !view.busy && B.outcome === 'ongoing' && card(c.id).cost <= sn.energy;
     const cls = [view.sel === c.uid ? 'sel' : '', playable ? '' : 'off', view.known.has(c.uid) ? '' : 'new'].join(' ');
-    return cardHTML(c.id, { uid: c.uid, cls, attr: 'role="button" tabindex="0"' });
+    return cardHTML(c.id, { uid: c.uid, lvl: c.lvl, cls, attr: 'role="button" tabindex="0"' });
   }).join('');
   sn.hand.forEach(c => view.known.add(c.uid));
   h.querySelectorAll('.card').forEach(el => el.onclick = e => { e.stopPropagation(); tapCard(+el.dataset.uid, el); });
@@ -379,22 +394,26 @@ async function play(events) {
     const sn = ev.snap;
     switch (ev.type) {
       case 'allyAttacks': anim($(`#slot-${ev.side} .ally`), ev.side === 'player' ? 'lunge-up' : 'lunge-down'); break;
-      case 'allyHit': { const n = $(`#slot-${ev.side} .ally`); anim(n, 'shake'); floatAt(n, `-${ev.amount}`, COL.blood); Sound.play('hit'); break; }
+      case 'allyHit': { const n = $(`#slot-${ev.side} .ally`); anim(n, 'shake'); floatAt(n, `-${ev.amount}`, COL.blood, numSize(ev.amount)); Sound.play('hit'); break; }
       case 'allyDied': {
         const n = $(`#slot-${ev.side} .ally`);
         if (n) { n.classList.add('die'); if (ev.side === 'player') floatAt(n, '+1 Ash', COL.ash, 16); await sleep(240); }
         Sound.play('death'); break;
       }
       case 'faceHit':
-        if (ev.side === 'enemy') { anim($('#cmd'), 'shake'); floatAt($('#cmd'), `-${ev.amount}`, COL.blood, 28); }
-        else { anim($('#hp'), 'shake'); floatAt($('#hp'), `-${ev.amount}`, COL.blood); flash(COL.blood, .16); buzz(25); }
+        if (ev.side === 'enemy') {
+          const big = ev.amount >= 20;
+          anim($('#cmd'), 'shake'); floatAt($('#cmd'), `-${ev.amount}`, COL.blood, numSize(ev.amount) + 4, big ? 'crit' : '');
+          if (big) { anim($('#bt'), 'quake'); flash(COL.ember, Math.min(.35, .12 + ev.amount / 300)); buzz(Math.min(80, 20 + ev.amount)); }
+        }
+        else { anim($('#hp'), 'shake'); floatAt($('#hp'), `-${ev.amount}`, COL.blood, numSize(ev.amount)); flash(COL.blood, .16); buzz(25); }
         Sound.play('hit'); break;
       case 'healed': floatAt(ev.side === 'enemy' ? $('#cmd') : $('#hp'), `+${ev.amount}`, COL.heal); break;
       case 'block': if (ev.value > 0) Sound.play('shield'); break;
       case 'ash': Sound.play('ash'); break;
       case 'allyIn': Sound.play('summon'); break;
       case 'enemyActs': anim($('#cmd'), 'pop'); banner(ev.text, COL.blood, .3, 700); Sound.play('enemy'); break;
-      case 'burn': flash(COL.ember, .35); banner(`BURN!  ${ev.amount}`, COL.ember, .55, 700); Sound.play('burn'); break;
+      case 'burn': flash(COL.ember, .35); anim($('#bt'), 'quake'); banner(`BURN!  ${ev.amount}`, COL.ember, .55, 700); Sound.play('burn'); break;
       case 'info': banner(ev.text, COL.paper, .45, 650); break;
       case 'artifacts': Sound.play('shield'); break;
     }
@@ -417,7 +436,7 @@ async function winBattle() {
   if (final) G.run.ashEarned += B.ashGainedTotal; else Run.winFight(G.run, B, G.meta);
   Store.save();
   await sleep(1500);
-  if (final) { const fight = G.run.fight; const banked = endRun(true); Sound.play('unlock'); showEnd(true, fight, banked, null); }
+  if (final) { G.run.bestTurn = Math.max(G.run.bestTurn || 0, B.bestTurn); const fight = G.run.fight, bt = G.run.bestTurn; const banked = endRun(true); Sound.play('unlock'); showEnd(true, fight, banked, null, bt); }
   else showReward();
 }
 async function loseBattle() {
@@ -425,10 +444,11 @@ async function loseBattle() {
   Sound.play('defeat'); flash(COL.blood, .4); buzz(200);
   banner('The pyre claims you.', COL.blood, .5, 1600);
   G.run.ashEarned += B.ashGainedTotal;
-  const fight = G.run.fight, killer = B.enemy.name;
+  G.run.bestTurn = Math.max(G.run.bestTurn || 0, B.bestTurn);
+  const fight = G.run.fight, killer = B.enemy.name, bt = G.run.bestTurn;
   await sleep(2000);
   const banked = endRun(false);
-  showEnd(false, fight, banked, killer);
+  showEnd(false, fight, banked, killer, bt);
 }
 
 // ---------- rewards ----------
@@ -448,15 +468,37 @@ function showReward() {
     const t = $('#take'); t.disabled = false; t.textContent = chosen === -1 ? 'Take Artifact' : 'Take Bundle'; t.className = 'btn ' + (chosen === -1 ? 'gold' : 'primary');
   });
   const finish = take => {
-    let aug;
-    if (take && chosen === -1) aug = Run.takeArtifact(r, G.meta);
-    else aug = Run.takeBundle(r, take ? r.pendingBundles[chosen] : null, G.meta);
+    if (take && chosen === -1) Run.takeArtifact(r, G.meta);
+    else Run.takeBundle(r, take ? r.pendingBundles[chosen] : null, G.meta);
     if (take) Sound.play('unlock');
     Store.save();
-    aug ? showAugment() : showPath();
+    showEmpower();
   };
   on(s, '#take', () => finish(true));
   on(s, '#skip', () => finish(false));
+}
+function goStage(st) { st === 'empower' ? showEmpower() : st === 'augment' ? showAugment() : showPath(); }
+function showEmpower() {
+  const r = G.run; Run.fix(r);
+  const opts = Run.empowerable(r);
+  if (!opts.length) { Store.save(); return goStage(Run.takeEmpower(r, null, G.meta)); }
+  let chosen = null;
+  const seen = new Set(), list = opts.filter(i => { const k = r.deck[i] + ':' + r.stars[i]; if (seen.has(k)) return false; seen.add(k); return true; })
+    .sort((a, b) => card(r.deck[a]).cost - card(r.deck[b]).cost || card(r.deck[a]).name.localeCompare(card(r.deck[b]).name) || r.stars[b] - r.stars[a]);
+  const s = screen(`<h1 class="center" style="color:var(--gold);font-size:30px">Empower a Card</h1>
+<div class="center dim small" style="font-weight:700;margin:4px 0 2px">Its gold numbers grow 50% per ★ (max ${MAX_STARS}).${r.empowersLeft > 1 ? ` ${r.empowersLeft} left.` : ''}</div>
+<div class="emp-prev" id="prev"><span class="faint small" style="font-weight:700">Tap a card to preview</span></div>
+<div class="scroll"><div class="grid emp-pick">${list.map(i => cardHTML(r.deck[i], { lvl: r.stars[i], attr: `data-i="${i}"` })).join('')}</div></div>
+<div class="stack" style="padding-top:8px"><button class="btn gold" id="take" disabled>Empower</button><button class="btn quiet" id="skip">Skip</button></div>`);
+  on(s, '.emp-pick .card', el => {
+    chosen = +el.dataset.i;
+    s.querySelectorAll('.emp-pick .card').forEach(c => c.classList.toggle('sel', c === el));
+    const id = r.deck[chosen], l = r.stars[chosen];
+    $('#prev').innerHTML = `${cardHTML(id, { lvl: l, cls: 'big' })}<span class="arrow">→</span>${cardHTML(id, { lvl: l + 1, cls: 'big' })}`;
+    $('#take').disabled = false;
+  });
+  on(s, '#take', () => { Sound.play('unlock'); buzz(40); const st = Run.takeEmpower(r, chosen, G.meta); Store.save(); goStage(st); });
+  on(s, '#skip', () => { const st = Run.takeEmpower(r, null, G.meta); Store.save(); goStage(st); });
 }
 function showAugment() {
   const r = G.run; let chosen = null;
@@ -470,12 +512,13 @@ function showAugment() {
 }
 
 // ---------- end, shrine, how to ----------
-function showEnd(won, fight, banked, killer) {
+function showEnd(won, fight, banked, killer, bestTurn = 0) {
   const s = screen(`<div class="menu-hero">${sigil(won ? 'victory' : 'defeat', won ? COL.ember : COL.blood, { eye: !won, glow: true, lw: 1.6 })}
 <div class="t"><h1 style="font-size:40px">${won ? 'Unbound' : 'Ashes to Ashes'}</h1>
 <div class="dim" style="font:600 17px var(--title);max-width:280px;margin:6px auto 0">${won ? 'You walked through every fire and came out the other side.' : `Felled by ${esc(killer)} in fight ${fight} of ${TOTAL_FIGHTS}.`}</div></div></div>
 <div class="center" style="margin-bottom:16px"><div class="dim">Fights won: <b style="color:var(--paper)">${won ? TOTAL_FIGHTS : fight - 1}</b></div>
-<div style="font:700 24px var(--body);color:var(--ash);margin-top:8px">+${banked} Ash banked</div><div class="dim small">Shrine total: ${G.meta.ash}</div></div>
+<div style="font:700 24px var(--body);color:var(--ash);margin-top:8px">+${banked} Ash banked</div><div class="dim small">Shrine total: ${G.meta.ash}</div>
+${bestTurn ? `<div class="best">Biggest turn: ${bestTurn} damage${bestTurn >= (G.meta.bestTurn || 0) ? ' · new record!' : ''}</div>` : ''}</div>
 <div class="stack"><button class="btn primary" id="shrine">Visit the Shrine</button><button class="btn" id="menu">Main Menu</button></div>`);
   setTimeout(() => Sound.play('ash'), 400);
   on(s, '#shrine', () => showShrine());
@@ -491,20 +534,21 @@ function showShrine() {
 ${owned ? '<span class="owned">Offered</span>' : `<button class="btn ${Meta.canBuy(m, u) ? 'primary' : ''}" data-u="${u.id}" ${Meta.canBuy(m, u) ? '' : 'disabled'}>${u.cost} Ash</button>`}</div>`;
   }).join('');
   const s = screen(`<h1 class="center" style="font-size:32px">Shrine of Ash</h1><div class="center" style="font:700 16px var(--body);color:var(--ash);margin:4px 0 10px">${m.ash} Ash to offer</div>
-<div class="scroll"><div class="list">${rows}</div><div class="center faint small" style="font-weight:700;padding:8px 0">Runs ${m.runs} · Victories ${m.wins} · Best fight ${Math.min(m.bestFight, TOTAL_FIGHTS)}</div></div>
+<div class="scroll"><div class="list">${rows}</div><div class="center faint small" style="font-weight:700;padding:8px 0">Runs ${m.runs} · Victories ${m.wins} · Best fight ${Math.min(m.bestFight, TOTAL_FIGHTS)}${m.bestTurn ? ` · Biggest turn ${m.bestTurn}` : ''}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn" id="back">Back</button></div>`);
   on(s, '[data-u]', el => { const u = UNLOCKS.find(x => x.id === el.dataset.u); if (Meta.buy(G.meta, u)) { Sound.play('unlock'); buzz(40); Store.save(); showShrine(); } });
   on(s, '#back', () => showMenu());
 }
 function showHowTo(thenPath) {
   const sections = [
-    ['The run', 'Face 8 opponents in a row, each tougher than the last. You fully heal between fights. After each win, take a bundle of 3 cards or one Legendary Artifact. After fights 2, 4 and 6, pick a powerful Augment. When a run ends, your Ash unlocks permanent upgrades at the Shrine.'],
+    ['The run', 'Beat 8 foes in a row; you fully heal between fights. After each win: take 3 cards or a Legendary Artifact, then Empower a card (★ grows its gold numbers 50%). After fights 2, 4 and 6, pick an Augment. Ash you bank unlocks upgrades at the Shrine.'],
     ['Energy grows', 'Round 1 gives you 1 energy, round 2 gives 2, and so on up to 10. You keep your hand between turns and draw a card each turn.'],
     ['Three kinds of card', 'Creatures stand in front of you, one at a time. Spells happen once. Artifacts stay in play and keep working; you can hold 3, and a 4th replaces the oldest. Tap a card to pick it up, then tap it again to play it.'],
     ['Your creature', 'Enemy hits land on your creature first, and anything left over hits you. At the end of your turn, it attacks. Playing a new creature replaces the old one.'],
-    ['Ash, Stoke and Burn', 'You gain 1 Ash whenever your creature dies. You can also Stoke: spend 2 energy for 1 Ash, once per turn. When your Ash is full, tap Burn for a big hit straight to the enemy.'],
+    ['Ash, Stoke and Burn', 'Gain 1 Ash whenever your creature dies, or Stoke (2 energy, once per turn). Full Ash: tap Burn for a big hit that ignores Block. Each Burn hits 6 harder than the last.'],
     ['Scorch', 'Damage over time: at the start of your turn the enemy takes its Scorch as damage, ignoring Block, then Scorch drops by 1.'],
-    ['The enemy', 'The box by the enemy shows exactly what it will do next. Watch for Lunge (skips your creature), Wither (shrinks your creature’s attack) and Shatter (breaks your oldest artifact). Hex spells fight back: Weaken, Rot, Expose, Turncoat and Smother.'],
+    ['The enemy', 'The box by the enemy shows its next move. Lunge skips your creature, Wither shrinks its attack, Shatter breaks your oldest artifact.'],
+    ['Keywords', 'Deathrattle: when this creature dies. Lifesteal: damage dealt heals you. Sacrifice: your creature dies (you still get its Ash).'],
   ];
   const s = screen(`<h1 class="center" style="font-size:32px">How to Play</h1>
 <div class="scroll howto">${sections.map(([h, p]) => `<h3>${h}</h3><p>${p}</p>`).join('')}

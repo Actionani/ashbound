@@ -45,6 +45,11 @@ async def main():
                     panels = await page.query_selector_all('.panel')
                     await panels[-1 if fights == 2 else 0].click(); await page.wait_for_timeout(150)
                     await page.click('#take'); await page.wait_for_timeout(400)
+                elif 'Empower' in txt:
+                    await page.screenshot(path='shots/6b_empower.png')
+                    await (await page.query_selector_all('.emp-pick .card'))[-1].click(); await page.wait_for_timeout(200)
+                    await page.screenshot(path='shots/6c_empower_pick.png')
+                    await page.click('#take'); await page.wait_for_timeout(400)
                 else:
                     await page.screenshot(path='shots/7_augment.png')
                     await (await page.query_selector_all('.panel'))[0].click()
@@ -60,6 +65,35 @@ async def main():
                 break
             await page.wait_for_timeout(300)
         print('fights won:', fights, 'steps:', step)
+        # Scenario: a saved run waiting on its reward (checks reward -> Empower -> battle with stars)
+        await page.evaluate('''() => {
+          const meta = Core.newMeta(); meta.seenTutorial = true;
+          const r = Core.Run.create(meta, 99);
+          r.deck.push('fireball', 'spellstorm', 'familiar', 'leechBite', 'boneHarvest'); r.stars = r.deck.map((_, i) => i % 3);
+          Core.Run.winFight(r, { ashGainedTotal: 3, bestTurn: 41 }, meta);
+          localStorage.setItem('ashbound.web.v1', JSON.stringify({ meta, run: r, savedAt: Date.now() + 1e7 }));
+        }''')
+        await page.reload(); await page.wait_for_selector('#cont', timeout=8000)
+        await page.click('#cont'); await page.wait_for_timeout(400)
+        await (await page.query_selector_all('.panel'))[0].click(); await page.click('#take'); await page.wait_for_timeout(500)
+        await page.screenshot(path='shots/11_empower.png')
+        picks = await page.query_selector_all('.emp-pick .card')
+        await picks[len(picks)//2].click(); await page.wait_for_timeout(200)
+        await page.screenshot(path='shots/12_empower_preview.png')
+        await page.click('#take'); await page.wait_for_timeout(500)
+        await page.click('#deck'); await page.wait_for_timeout(300)
+        await page.screenshot(path='shots/13_deck_stars.png')
+        await page.click('.modal .btn'); await page.click('#fight'); await page.wait_for_timeout(1500)
+        for _ in range(6):
+            cards = await page.query_selector_all('#hand .card:not(.off)')
+            if cards:
+                await cards[0].click(force=True); await page.wait_for_timeout(100)
+                sel = await page.query_selector('#hand .card.sel')
+                if sel: await sel.click(force=True)
+                await page.wait_for_timeout(500)
+            else:
+                await page.click('#end'); await page.wait_for_timeout(1800)
+        await page.screenshot(path='shots/14_battle_stars.png')
         print('errors:', errs[:10])
         await b.close()
 asyncio.run(main())
