@@ -19,7 +19,7 @@ function score(b, c) {
   if (d.damaging && !['shieldBash', 'fireball', 'spellstorm', 'martyrsFury', 'boneHarvest'].includes(c.id)) return 10 + d.cost * 4;
   switch (c.id) {
     case 'shieldBash': return b.block >= 6 ? 14 + (b.block >> 1) : 0;
-    case 'guardUp': case 'ashWard': case 'brace': case 'secondWind': case 'ironSkin': { const need = incoming(b) - b.block; return need > 0 ? 12 + Math.min(need, 16) + d.cost : 1; }
+    case 'guardUp': case 'ashWard': case 'parry': case 'brace': case 'secondWind': case 'ironSkin': { const need = incoming(b) - b.block; return need > 0 ? 12 + Math.min(need, 16) + d.cost : 1; }
     case 'kindle': return 5;
     case 'swarmCall': return b.allies.player ? 4 : 8;
     case 'fanFlames': case 'battleCry': return 10 + d.cost * 3;
@@ -36,6 +36,7 @@ function score(b, c) {
     case 'wildfire': return 14 + b.scorch;
     case 'fireball': return b.energy >= 5 && !b.hand.some(x => x !== c && b.canPlay(x) && card(x.id).cost >= 3) ? 10 + b.energy * 3 : 0;
     case 'glimmer': return 9;
+    case 'insight': return 10;
     case 'ritual': return b.hand.some(x => x !== c && card(x.id).cost > b.energy - 1 && card(x.id).cost <= b.energy + 1) ? 13 : 3;
     case 'spellstorm': return b.spellsThisTurn >= 2 ? 10 + b.spellsThisTurn * 5 : (b.hand.filter(x => b.canPlay(x)).length <= 1 && b.spellsThisTurn ? 8 : 0);
     case 'bloodPact': return b.hp > 12 ? 9 : 0;
@@ -45,10 +46,38 @@ function score(b, c) {
   }
   return 1;
 }
+// How much is it worth to counter the enemy's current action?
+function counterWorth(b) {
+  const i = b.intent; if (!i || b.smothered) return 0;
+  if (C.ATTACK_KINDS.includes(i.kind)) { const d = Math.max(0, i.amount + b.enrage - b.weaken) * (i.hits || 1); return d >= 7 ? 12 + d : 0; }
+  return { heal: 18, summon: 16, shatter: b.artifacts.length ? 18 : 0, enrage: 15, wither: b.allies.player ? 12 : 0, block: 5 }[i.kind] || 0;
+}
+function reserve(b) {
+  // Keep energy for the cheapest counter that answers a move worth countering.
+  if (counterWorth(b) < 12) return 0;
+  const was = b.phase; b.phase = 'respond';
+  const cs = b.hand.filter(c => card(c.id).counter && b.counterFits(card(c.id))).map(c => card(c.id).cost);
+  b.phase = was;
+  return cs.length ? Math.min(...cs) : 0;
+}
+function respond(b) {
+  for (let n = 0; n < 12 && b.phase === 'respond' && b.outcome === 'ongoing'; n++) {
+    const opts = b.hand.filter(c => b.canPlay(c)).map(c => {
+      const d = card(c.id);
+      let v = d.counter ? counterWorth(b) : d.type === 'creature' ? (!b.allies.player ? 14 : 0) : score(b, c);
+      return [c, v];
+    }).filter(x => x[1] > 0);
+    if (!opts.length) break;
+    opts.sort((x, y) => y[1] - x[1]);
+    b.play(opts[0][0].uid); b.takeEvents();
+  }
+  if (b.phase === 'respond') { b.pass(); b.takeEvents(); }
+}
 function playTurn(b) {
+  const keep = reserve(b);
   for (let n = 0; n < 25; n++) {
     if (b.canBurn) { b.useBurn(); b.takeEvents(); if (b.outcome !== 'ongoing') return; }
-    const opts = b.hand.filter(c => b.canPlay(c)).map(c => [c, score(b, c)]).filter(x => x[1] > 0);
+    const opts = b.hand.filter(c => b.canPlay(c) && b.energy - card(c.id).cost >= keep).map(c => [c, score(b, c)]).filter(x => x[1] > 0);
     if (!opts.length) break;
     opts.sort((x, y) => y[1] - x[1]);
     b.play(opts[0][0].uid); b.takeEvents();
@@ -57,16 +86,17 @@ function playTurn(b) {
   if (b.canStoke) { b.stoke(); b.takeEvents(); }
   if (b.canBurn) { b.useBurn(); b.takeEvents(); if (b.outcome !== 'ongoing') return; }
   b.endTurn(); b.takeEvents();
+  if (b.phase === 'respond') respond(b);
 }
-function simulate(runs, unlockAll, fav, seed) {
+function simulate(runs, unlockAll, fav, seed, cls = 'pyro') {
   const master = new C.RNG(seed);
   let wins = 0, fightSum = 0, bestSum = 0;
   for (let k = 0; k < runs; k++) {
     const meta = C.newMeta(); if (unlockAll) meta.unlocked = C.UNLOCKS.map(u => u.id);
-    const r = C.Run.create(meta, Math.floor(master.next() * 4e9));
+    const r = C.Run.create(meta, Math.floor(master.next() * 4e9), cls);
     let won = false;
     while (true) {
-      const b = new C.Battle(C.Run.currentEnemy(r), r.fight, C.Run.deckCards(r), r.maxHP, r.augments, C.Meta.burnBonus(meta), Math.floor(master.next() * 4e9));
+      const b = new C.Battle(C.Run.currentEnemy(r), r.fight, C.Run.deckCards(r), r.maxHP, r.augments, C.Meta.classBonus(meta, cls), Math.floor(master.next() * 4e9), cls);
       b.start(); b.takeEvents();
       while (b.outcome === 'ongoing' && b.round < 40) playTurn(b);
       r.bestTurn = Math.max(r.bestTurn, b.bestTurn);
@@ -92,7 +122,12 @@ function simulate(runs, unlockAll, fav, seed) {
   return `win ${(100 * wins / runs).toFixed(1)}%  avg fight ${(fightSum / runs).toFixed(2)}  best turn avg ${(bestSum / runs).toFixed(0)}`;
 }
 const n = +process.argv[2] || 600;
-console.log('fresh, mixed       ', simulate(n, false, null, 1));
-console.log('all unlocks, mixed ', simulate(n, true, null, 2));
-for (const t of ['embers', 'bulwark', 'swarm', 'artifice', 'scorch', 'giants', 'pyre', 'hex', 'spellbound', 'bloodrite', 'echoes'])
-  console.log(('loves ' + t).padEnd(19), simulate(n, true, t, 3));
+const only = process.argv[3];
+for (const cls of ['pyro', 'arcanist']) {
+  if (only && only !== cls) continue;
+  console.log(`== ${C.CLASSES[cls].name}`);
+  console.log('fresh, mixed       ', simulate(n, false, null, 1, cls));
+  console.log('all unlocks, mixed ', simulate(n, true, null, 2, cls));
+  for (const t of C.Meta.themes({ unlocked: C.UNLOCKS.map(u => u.id) }, cls))
+    console.log(('loves ' + t).padEnd(19), simulate(n, true, t, 3, cls));
+}

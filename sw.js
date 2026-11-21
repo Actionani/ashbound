@@ -1,5 +1,5 @@
 // Offline support: serve the game from the cache, refresh it in the background when online.
-const CACHE = 'ashbound-530de4d020';
+const CACHE = 'ashbound-d104847bd4';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

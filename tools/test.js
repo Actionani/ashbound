@@ -2,8 +2,8 @@ const C = require('../src/core.js');
 let fails = 0;
 const check = (c, m) => { if (!c) { fails++; console.log('FAIL', m); } else console.log('ok', m); };
 const pad = d => d.concat(Array(Math.max(0, 6 - d.length)).fill('strike'));
-function battle(deck, enemy = 'inkLeech', aug = []) {
-  const b = new C.Battle(enemy, 1, deck, 30, aug, 0, 7); b.start(); b.draw(10); b.takeEvents(); return b;
+function battle(deck, enemy = 'inkLeech', aug = [], cls = 'pyro') {
+  const b = new C.Battle(enemy, 1, deck, 30, aug, 0, 7, cls); b.start(); b.draw(10); b.takeEvents(); return b;
 }
 const cardOf = (b, id) => b.hand.find(c => c.id === id);
 const playId = (b, id) => b.play(cardOf(b, id).uid);
@@ -77,4 +77,36 @@ const playId = (b, id) => b.play(cardOf(b, id).uid);
   b.hitFace('enemy', 999, true); check(b.outcome === 'won', 'dies for good second time'); }
 { const b = battle(pad([]), 'silentChoir'); check(b.ashNeeded === 4, 'hush: burn needs 4'); }
 { const b = battle(pad([]), 'hollowMatron'); check(b.allies.enemy && b.allies.enemy.minion === 'grub', 'brood starts with grub'); }
+
+
+// Classes, Flash and counters
+{ const r = C.Run.create(C.newMeta(), 3, 'arcanist'); check(r.cls === 'arcanist' && r.deck.includes('negate'), 'arcanist starter');
+  const b = new C.Battle(C.Run.currentEnemy(r), 1, C.Run.deckCards(r), 30, [], 0, 2, 'arcanist'); b.start(); b.ash = 0;
+  b.gainAsh(3); check(b.ash === 0 && !b.canStoke && !b.canBurn, 'arcanist has no Ash'); }
+{ const b = battle(pad(['negate', 'quickBolt']), 'paleChoir', [], 'arcanist'); b.energy = 5;
+  b.intent = { kind: 'heal', amount: 10, hits: 1 };
+  check(!b.canPlay(cardOf(b, 'negate')), 'counter not castable in main phase');
+  b.endTurn(); b.takeEvents(); check(b.phase === 'respond', 'respond window opens');
+  check(!b.canPlay(cardOf(b, 'strike')), 'non-flash blocked in response');
+  const hp = b.enemyHP; playId(b, 'negate'); check(b.smothered, 'negate counters a spell');
+  playId(b, 'quickBolt'); check(b.enemyHP === hp - 5, 'flash damage in response');
+  b.pass(); b.takeEvents(); check(b.phase === 'main' && b.round === 2, 'pass: enemy acts, new round'); }
+{ const b = battle(pad(['negate']), 'inkLeech', [], 'arcanist'); b.energy = 5; b.intent = { kind: 'attack', amount: 6, hits: 1 };
+  b.endTurn(); b.takeEvents(); check(b.phase === 'main' && b.round === 2, 'no response window when nothing fits (negate vs attack)'); }
+{ const b = battle(pad(['deflection'])); b.energy = 5; b.intent = { kind: 'attack', amount: 6, hits: 2 };
+  b.endTurn(); b.takeEvents(); const hp = b.enemyHP, me = b.hp; playId(b, 'deflection'); b.pass(); b.takeEvents();
+  check(b.enemyHP <= hp - 12 && b.hp === me, 'deflection turns the attack around'); }
+{ const b = battle(pad(['manaDrain', 'prismWard'])); b.energy = 10; playId(b, 'prismWard'); b.intent = { kind: 'enrage', amount: 2, hits: 1 };
+  const hp = b.enemyHP; b.endTurn(); b.takeEvents(); playId(b, 'manaDrain'); check(b.enemyHP === hp - 8, 'prism ward fires on counter');
+  b.pass(); b.takeEvents(); check(b.energy === 4 && b.enrage === 0, 'mana drain +2 energy next turn, enrage countered'); }
+{ const b = battle(pad(['ambusher']), 'inkLeech', [], 'arcanist'); b.energy = 5; b.intent = { kind: 'attack', amount: 3, hits: 1 };
+  b.endTurn(); b.takeEvents(); const me = b.hp; playId(b, 'ambusher'); b.pass(); b.takeEvents();
+  check(b.hp === me && b.allies.player && b.allies.player.health === 2, 'flash creature blocks the attack'); }
+{ const b = new C.Battle('inkLeech', 1, ['debtLedger', ...Array(12).fill('strike')], 30, [], 0, 7); b.start(); b.takeEvents();
+  b.drawPile = b.drawPile.filter(c => c.id !== 'debtLedger'); b.hand.push(b.makeCard('debtLedger')); b.energy = 5;
+  const n = b.hand.length; playId(b, 'debtLedger'); check(b.hand.length === n - 1 + 3, 'debt ledger battlecry draws 3'); }
+{ const meta = C.newMeta(); meta.unlocked.push('themePyre'); const r = C.Run.create(meta, 9, 'arcanist');
+  for (let i = 0; i < 30; i++) { C.Run.winFight(r, { ashGainedTotal: 0, bestTurn: 0 }, meta);
+    for (const bd of r.pendingBundles) check(bd.theme !== 'pyre' && bd.cards.every(id => !C.card(id).cls || C.card(id).cls === 'arcanist'), 'arcanist never offered Ash cards'); }
+  check(C.augmentsFor('arcanist').every(a => !['hotCoals', 'ashCrown', 'brandOfFury', 'cinderCloak'].includes(a)), 'no Ash augments for arcanist'); }
 console.log(fails ? fails + ' FAILURES' : 'ALL PASS');

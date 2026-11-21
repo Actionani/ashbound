@@ -1,4 +1,4 @@
-// Ashbound rules, ported from the Swift version (Core/*.swift). No DOM here.
+// Ash game rules (originally ported from the Swift version). No DOM here.
 const Core = (() => {
   // ---------- RNG (mulberry32; state is a plain number so it saves easily) ----------
   class RNG {
@@ -27,17 +27,21 @@ const Core = (() => {
     scorch: ['Scorch', 'Damage over time'], giants: ['Giants', 'Big creatures and buffs'], pyre: ['Pyre', 'Ash and Burn'],
     hex: ['Hex', 'Curses and counters'], spellbound: ['Spellbound', 'Chain spells into one huge turn'],
     bloodrite: ['Bloodrite', 'Pay HP, drain it back'], echoes: ['Echoes', 'Recycle your used pile'],
+    arcana: ['Arcana', 'Flash spells and counters (Arcanist)'],
     legendary: ['Legendary', ''],
   };
   const C = [];
   const nums = text => (text.match(/\{\d+\}/g) || []).map(x => +x.slice(1, -1));
+  // o.flash: castable in the response window. o.counter: 'spell' | 'attack' | 'any' (response only). o.cls: class-only card.
+  const base = (o) => ({ flash: !!o.flash || !!o.counter, counter: o.counter || null, cls: o.cls || null });
   const spell = (id, name, cost, theme, text, o = {}) =>
-    C.push({ id, name, cost, type: 'spell', theme, text, nums: nums(text), power: 0, health: 0, needsAlly: !!o.needsAlly, damaging: !!o.damaging, charges: 0 });
-  const creature = (id, name, cost, theme, p, h, text = '') =>
-    C.push({ id, name, cost, type: 'creature', theme, text, nums: nums(text), power: p, health: h, needsAlly: false, damaging: false, charges: 0 });
-  const artifact = (id, name, cost, theme, text, charges = 0) =>
-    C.push({ id, name, cost, type: 'artifact', theme, text, nums: nums(text), power: 0, health: 0, needsAlly: false, damaging: false, charges });
-  const D = { damaging: true }, A = { needsAlly: true };
+    C.push({ id, name, cost, type: 'spell', theme, text, nums: nums(text), power: 0, health: 0, needsAlly: !!o.needsAlly, damaging: !!o.damaging, charges: 0, ...base(o) });
+  const creature = (id, name, cost, theme, p, h, text = '', o = {}) =>
+    C.push({ id, name, cost, type: 'creature', theme, text, nums: nums(text), power: p, health: h, needsAlly: false, damaging: false, charges: 0, ...base(o) });
+  const artifact = (id, name, cost, theme, text, charges = 0, o = {}) =>
+    C.push({ id, name, cost, type: 'artifact', theme, text, nums: nums(text), power: 0, health: 0, needsAlly: false, damaging: false, charges, ...base(o) });
+  const D = { damaging: true }, A = { needsAlly: true }, F = { flash: true }, DF = { damaging: true, flash: true };
+  const PYRO = { cls: 'pyro' }, ARC = { cls: 'arcanist' };
 
   spell('strike', 'Strike', 1, 'starter', 'Deal {3} damage.', D);
   spell('guardUp', 'Guard', 1, 'starter', 'Gain {4} Block.');
@@ -48,6 +52,15 @@ const Core = (() => {
   spell('singe', 'Singe', 1, 'starter', 'Deal {3} damage. Apply {1} Scorch.', D);
   spell('ashWard', 'Ash Ward', 1, 'starter', 'Gain {4} Block. Your creature gets +0/+{2}.');
   creature('boneWard', 'Bone Ward', 1, 'starter', 0, 5, 'Deathrattle: Gain {4} Block.');
+  // Arcanist starter: every spell has Flash.
+  spell('quickBolt', 'Quick Bolt', 1, 'starter', 'Flash. Deal {5} damage.', { ...DF, ...ARC });
+  spell('parry', 'Parry', 1, 'starter', 'Flash. Gain {6} Block.', { ...F, ...ARC });
+  spell('negate', 'Negate', 1, 'starter', 'Flash. Counter an enemy spell.', { counter: 'spell', ...ARC });
+  spell('arcBolt', 'Arc Bolt', 2, 'starter', 'Flash. Deal {8} damage.', { ...DF, ...ARC });
+  spell('manaBolt', 'Mana Bolt', 2, 'starter', 'Flash. Deal {5} damage, +{3} for each spell you cast this fight.', { ...DF, ...ARC });
+  creature('apprentice', 'Apprentice', 1, 'starter', 2, 3, '', ARC);
+  creature('sentry', 'Sentry', 2, 'starter', 3, 4, '', ARC);
+  artifact('manaPrism', 'Mana Prism', 2, 'starter', 'End of turn: If you have unspent energy, draw a card.', 0, ARC);
 
   spell('flameJab', 'Flame Jab', 1, 'embers', 'Deal {3} damage. Draw a card.', D);
   spell('twinFlames', 'Twin Flames', 2, 'embers', 'Deal {6} damage twice.', D);
@@ -70,7 +83,7 @@ const Core = (() => {
   creature('broodMother', 'Brood Mother', 4, 'swarm', 4, 5, 'Deathrattle: Summon a Cinder Moth.');
 
   artifact('boneAltar', 'Bone Altar', 1, 'artifice', 'After your creature dies, deal {5} damage.');
-  artifact('ashCenser', 'Ash Censer', 2, 'artifice', 'Start of turn: Gain 1 Ash.');
+  artifact('ashCenser', 'Ash Censer', 2, 'artifice', 'Start of turn: Gain 1 Ash.', 0, PYRO);
   artifact('mirrorShard', 'Mirror Shard', 2, 'artifice', 'Enemy attacks deal {4} less. Lasts 4 attacks.', 4);
   artifact('hourglass', 'Hourglass', 2, 'artifice', 'Gain +1 energy each turn.');
   creature('clockworkGolem', 'Clockwork Golem', 3, 'artifice', 3, 5, '+{3}/+{3} for each artifact you have.');
@@ -88,17 +101,35 @@ const Core = (() => {
   creature('stoneWarden', 'Stone Warden', 5, 'giants', 6, 9);
   creature('pyreGiant', 'Pyre Giant', 7, 'giants', 10, 12);
 
-  spell('stokeSpark', 'Spark', 0, 'pyre', 'Gain 1 Ash. Draw a card.');
-  spell('ashBlade', 'Ash Blade', 3, 'pyre', 'Deal {7} damage. Gain 1 Ash.', D);
-  spell('lastRites', 'Last Rites', 2, 'pyre', 'Sacrifice your creature. Fill your Ash.', A);
-  spell('heatUp', 'Heat Up', 2, 'pyre', 'Your Burn deals +{8} damage this fight.');
-  creature('phoenix', 'Phoenix', 5, 'pyre', 5, 6, 'Deathrattle: Gain 2 Ash.');
+  spell('stokeSpark', 'Spark', 0, 'pyre', 'Gain 1 Ash. Draw a card.', PYRO);
+  spell('ashBlade', 'Ash Blade', 3, 'pyre', 'Deal {7} damage. Gain 1 Ash.', { ...D, ...PYRO });
+  spell('lastRites', 'Last Rites', 2, 'pyre', 'Sacrifice your creature. Fill your Ash.', { ...A, ...PYRO });
+  spell('heatUp', 'Heat Up', 2, 'pyre', 'Your Burn deals +{8} damage this fight.', PYRO);
+  creature('phoenix', 'Phoenix', 5, 'pyre', 5, 6, 'Deathrattle: Gain 2 Ash.', PYRO);
 
   spell('weaken', 'Weaken', 1, 'hex', 'Enemy attacks deal {6} less this round.');
   spell('rot', 'Rot', 1, 'hex', 'Start of turn: Deal {3} damage to the enemy. Stacks.');
   spell('expose', 'Expose', 1, 'hex', "Destroy the enemy's Block. It can't Block this round. Draw a card.");
   spell('turncoat', 'Turncoat', 2, 'hex', "The enemy's minion hits its master for {3}× its attack, then dies.");
   spell('smother', 'Smother', 2, 'hex', "Counter the enemy's next action.");
+  spell('counterspell', 'Counterspell', 2, 'hex', 'Flash. Counter any enemy action.', { counter: 'any' });
+  spell('manaDrain', 'Mana Drain', 2, 'hex', 'Flash. Counter an enemy spell. Next turn, gain 2 energy.', { counter: 'spell' });
+  spell('deflection', 'Deflection', 2, 'hex', 'Flash. Counter an enemy attack. It hits the enemy instead.', { counter: 'attack' });
+
+  creature('ambusher', 'Ambusher', 2, 'arcana', 4, 5, 'Flash.', { ...F, ...ARC });
+  spell('insight', 'Insight', 1, 'arcana', 'Flash. Draw 2 cards.', { ...F, ...ARC });
+  spell('reprisal', 'Reprisal', 2, 'arcana', 'Flash. Deal {6} damage. If cast in response, deal {12} instead.', { ...DF, ...ARC });
+  spell('timeStop', 'Time Stop', 3, 'arcana', 'Flash. Counter any enemy action. Draw 2 cards.', { counter: 'any', ...ARC });
+  artifact('prismWard', 'Prism Ward', 2, 'arcana', 'After you counter an action, deal {8} damage and draw a card.', 0, ARC);
+  spell('spellSnare', 'Spell Snare', 0, 'arcana', 'Flash. Counter an enemy spell.', { counter: 'spell', ...ARC });
+
+  // Card-draw artifacts: some clean, some with a price.
+  artifact('scholarsLens', "Scholar's Lens", 3, 'artifice', 'Start of turn: Draw a card.');
+  artifact('bloodTome', 'Blood Tome', 2, 'bloodrite', 'Start of turn: Draw a card. Lose 2 HP.');
+  artifact('howlingBell', 'Howling Bell', 1, 'embers', 'Start of turn: Draw a card. Enemy attacks deal +2.');
+  artifact('grimoire', 'Cursed Grimoire', 1, 'echoes', 'Start of turn: Draw 2 cards, then discard a random card.');
+  artifact('debtLedger', 'Debt Ledger', 0, 'spellbound', 'Battlecry: Draw 3 cards. Start of turn: Lose 2 HP.');
+  artifact('seerCandle', "Seer's Candle", 2, 'swarm', 'End of turn: If your hand is empty, draw 2 cards.');
 
   creature('familiar', 'Arcane Familiar', 2, 'spellbound', 2, 3, 'After you cast a spell, gain +{1}/+{1}.');
   spell('glimmer', 'Glimmer', 0, 'spellbound', 'Draw a card.');
@@ -124,13 +155,19 @@ const Core = (() => {
   artifact('ashenCrown', 'Ashen Crown', 5, 'legendary', 'Your creature attacks twice.');
   artifact('graveBell', 'Grave Bell', 3, 'legendary', 'After your creature dies, deal damage equal to its attack.');
   artifact('clockworkHeart', 'Clockwork Heart', 4, 'legendary', 'End of turn: If you have no creature, summon a {3}/{4} Cog Hound.');
-  artifact('pyreAltar', 'Pyre Altar', 4, 'legendary', 'After you Burn, gain {10} Block and draw 2 cards.');
+  artifact('pyreAltar', 'Pyre Altar', 4, 'legendary', 'After you Burn, gain {10} Block and draw 2 cards.', 0, PYRO);
   artifact('eternalEmber', 'Eternal Ember', 3, 'legendary', 'Scorch no longer fades.');
 
   const CARDS = Object.fromEntries(C.map(c => [c.id, c]));
   const card = id => CARDS[id];
   const cardsOf = theme => C.filter(c => c.theme === theme);
   // Strike and Guard stay defined only so old saved runs still load.
+  const STARTER_ARC = ['quickBolt', 'quickBolt', 'quickBolt', 'parry', 'negate', 'manaBolt', 'apprentice', 'apprentice', 'sentry', 'manaPrism'];
+  const CLASSES = {
+    pyro: { name: 'Pyromancer', power: 'Ash power', blurb: 'Your creatures dying and Stoke fill your Ash. Full Ash: Burn for huge damage that grows each time.' },
+    arcanist: { name: 'Arcanist', power: 'No power', blurb: 'Your starting spells have Flash: after you end your turn, use leftover energy to cast them before the enemy acts. Counter its moves.' },
+  };
+  const ATTACK_KINDS = ['attack', 'lunge'];
   const STARTER = ['singe', 'singe', 'singe', 'ashWard', 'boneWard', 'ashling', 'ashling', 'emberBolt', 'huskHound', 'cinderLamp'];
 
   // ---------- Empower (stars) ----------
@@ -162,8 +199,14 @@ const Core = (() => {
     bloodFang: ['Blood Fang', 'Your damage spells have Lifesteal 2.'],
     kindledWounds: ['Kindled Wounds', 'Your Scorch applies +2.'],
     forgeMaster: ['Forgemaster', 'Empower 2 cards after each fight.'],
+    quicksilver: ['Quicksilver', 'Arcanist: Flash cards cost 1 less when cast in response.'],
+    mirrorMind: ['Mirror Mind', 'Arcanist: After you counter an action, draw a card.'],
+    stormGlass: ['Storm Glass', 'Arcanist: Flash spells cast in response deal +4 damage.'],
   };
   const AUGMENT_IDS = Object.keys(AUGMENTS);
+  const PYRO_AUGMENTS = ['hotCoals', 'ashCrown', 'brandOfFury', 'cinderCloak'];
+  const ARC_AUGMENTS = ['quicksilver', 'mirrorMind', 'stormGlass'];
+  const augmentsFor = cls => AUGMENT_IDS.filter(a => cls === 'pyro' ? !ARC_AUGMENTS.includes(a) : !PYRO_AUGMENTS.includes(a));
 
   // ---------- Enemies ----------
   const MINIONS = {
@@ -197,7 +240,9 @@ const Core = (() => {
   // ---------- Battle ----------
   const BURN_GROWTH = 6;
   class Battle {
-    constructor(enemyId, fight, deck, maxHP, augments, burnBonus, seed) {
+    constructor(enemyId, fight, deck, maxHP, augments, burnBonus, seed, cls = 'pyro') {
+      this.cls = cls; this.usesAsh = cls === 'pyro'; this.phase = 'main'; this.bonusEnergy = 0;
+      this.flashBonus = cls === 'arcanist' ? burnBonus : 0; if (cls !== 'pyro') burnBonus = 0;
       this.enemyId = enemyId;
       this.enemy = ENEMIES[enemyId];
       this.fight = fight;
@@ -230,7 +275,7 @@ const Core = (() => {
       return {
         hp: this.hp, maxHP: this.maxHP, block: this.block, energy: this.energy, maxE: this.maxEnergyThisRound,
         ash: this.ash, ashNeeded: this.ashNeeded, canStoke: this.canStoke, canBurn: this.canBurn, burnDamage: this.burnDamage,
-        stokePrice: this.stokePrice, stoked: this.stokedThisTurn, turnDamage: this.turnDamage,
+        stokePrice: this.stokePrice, stoked: this.stokedThisTurn, turnDamage: this.turnDamage, phase: this.phase, usesAsh: this.usesAsh, cls: this.cls,
         enemyHP: this.enemyHP, enemyMaxHP: this.enemyMaxHP, enemyBlock: this.enemyBlock,
         allies: { player: cp(this.allies.player), enemy: cp(this.allies.enemy) },
         artifacts: this.artifacts.map(a => ({ ...a })), hand: this.hand.map(c => ({ ...c })),
@@ -242,22 +287,37 @@ const Core = (() => {
     count(id) { return this.artifacts.filter(a => a.id === id).length; }
 
     get ashNeeded() { return (this.aug.has('hotCoals') ? 2 : 3) + (this.trick === 'hush' ? 1 : 0); }
-    get canBurn() { return this.outcome === 'ongoing' && this.ash >= this.ashNeeded; }
+    get canBurn() { return this.usesAsh && this.phase === 'main' && this.outcome === 'ongoing' && this.ash >= this.ashNeeded; }
     get burnDamage() { return (12 + this.burnBonus + this.heat + BURN_GROWTH * this.burns) * (this.aug.has('brandOfFury') ? 2 : 1); }
     get stokePrice() { return this.aug.has('ashCrown') ? 1 : STOKE_COST; }
-    get canStoke() { return this.outcome === 'ongoing' && !this.stokedThisTurn && this.energy >= this.stokePrice && this.ash < this.ashNeeded; }
+    get canStoke() { return this.usesAsh && this.phase === 'main' && this.outcome === 'ongoing' && !this.stokedThisTurn && this.energy >= this.stokePrice && this.ash < this.ashNeeded; }
     get spellBonus() { return this.aug.has('whetstone') ? 2 : 0; }
 
+    // Can this counter answer the enemy's current action?
+    counterFits(d) {
+      if (!d.counter || !this.intent || this.smothered) return false;
+      const atk = ATTACK_KINDS.includes(this.intent.kind);
+      return d.counter === 'any' || (d.counter === 'attack' ? atk : !atk);
+    }
+    costOf(c) {
+      const d = card(c.id);
+      return this.phase === 'respond' && d.flash && this.aug.has('quicksilver') ? Math.max(0, d.cost - 1) : d.cost;
+    }
     canPlay(c) {
       const d = card(c.id);
-      if (this.outcome !== 'ongoing' || d.cost > this.energy) return false;
+      if (this.outcome !== 'ongoing' || this.costOf(c) > this.energy) return false;
+      if (this.phase === 'respond' ? !d.flash : !!d.counter) return false;
+      if (d.counter && !this.counterFits(d)) return false;
       if (d.needsAlly && !this.allies.player) return false;
       if (c.id === 'turncoat' && !this.allies.enemy) return false;
       return true;
     }
     blockedReason(c) {
       const d = card(c.id);
-      if (d.cost > this.energy) return 'Not enough energy.';
+      if (this.phase === 'respond' && !d.flash) return 'Only Flash cards now.';
+      if (this.phase !== 'respond' && d.counter) return 'Cast it in response: end your turn first.';
+      if (d.counter && !this.counterFits(d)) return d.counter === 'attack' ? 'The enemy is not attacking.' : d.counter === 'spell' ? 'The enemy is attacking, not casting a spell.' : 'Nothing to counter.';
+      if (this.costOf(c) > this.energy) return 'Not enough energy.';
       if (d.needsAlly && !this.allies.player) return 'Needs a creature.';
       if (c.id === 'turncoat' && !this.allies.enemy) return 'No enemy minion.';
       return null;
@@ -275,7 +335,8 @@ const Core = (() => {
       this.round++;
       this.turnDamage = 0; this.spellsThisTurn = 0; this.echoUsed = false; this.smokeUsed = false; this.foresightUsed = false;
       if (this.round > 1 && this.block !== 0) { this.block = 0; this.ev('block', { side: 'player', value: 0 }); }
-      this.maxEnergyThisRound = Math.min(this.round, MAX_ENERGY) + (this.aug.has('emberHeart') ? 1 : 0) + this.count('hourglass');
+      this.maxEnergyThisRound = Math.min(this.round, MAX_ENERGY) + (this.aug.has('emberHeart') ? 1 : 0) + this.count('hourglass') + this.bonusEnergy;
+      this.bonusEnergy = 0;
       this.energy = this.maxEnergyThisRound;
       this.stokedThisTurn = false;
       this.ev('energy');
@@ -295,6 +356,13 @@ const Core = (() => {
         if (a.id === 'ironTotem') { this.ev('artifactFires', { uid: a.uid }); this.gainBlock(this.N(a)); }
         else if (a.id === 'ashCenser') { this.ev('artifactFires', { uid: a.uid }); this.gainAsh(1); }
         else if (a.id === 'sunForge') { this.ev('artifactFires', { uid: a.uid }); this.hitFront('enemy', this.N(a, 0)); this.gainBlock(this.N(a, 1)); }
+        else if (a.id === 'scholarsLens' || a.id === 'howlingBell') { this.ev('artifactFires', { uid: a.uid }); this.draw(1); }
+        else if (a.id === 'bloodTome') { this.ev('artifactFires', { uid: a.uid }); this.draw(1); this.loseHP(2); }
+        else if (a.id === 'debtLedger') { this.ev('artifactFires', { uid: a.uid }); this.loseHP(2); }
+        else if (a.id === 'grimoire') {
+          this.ev('artifactFires', { uid: a.uid }); this.draw(2);
+          if (this.hand.length) { const x = this.hand.splice(this.rng.int(0, this.hand.length), 1)[0]; this.discard.push(x); this.ev('info', { text: `Grimoire discards ${card(x.id).name}.` }); this.ev('hand'); }
+        }
         else if (a.id === 'ossuary' && this.discard.length && this.hand.length < 10) {
           this.ev('artifactFires', { uid: a.uid });
           const i = this.rng.int(0, this.discard.length);
@@ -327,7 +395,7 @@ const Core = (() => {
       if (idx < 0) return false;
       const c = this.hand[idx], d = card(c.id);
       if (!this.canPlay(c)) return false;
-      this.energy -= d.cost;
+      this.energy -= this.costOf(c);
       this.ev('energy');
       this.hand.splice(idx, 1);
       this.ev('hand');
@@ -338,7 +406,7 @@ const Core = (() => {
         if (this.outcome === 'ongoing') this.summonPlayer(c.id, c.lvl, c.uid);
       } else {
         this.discard.push(c);
-        const before = this.spellsThisTurn++;
+        const before = this.spellsThisTurn++; this.spellsCast = (this.spellsCast || 0) + 1;
         if (this.trick === 'foresight' && this.spellsThisTurn === 3 && !this.foresightUsed && !this.exposed) {
           this.foresightUsed = true; this.enemyBlock += 8;
           this.ev('info', { text: `Foresight: ${this.enemy.name} gains 8 Block.` }); this.ev('block', { side: 'enemy', value: this.enemyBlock });
@@ -346,7 +414,7 @@ const Core = (() => {
         const times = this.has('echoChamber') && !this.echoUsed ? 2 : 1;
         if (times === 2) { this.echoUsed = true; this.ev('artifactFires', { uid: this.artifacts.find(a => a.id === 'echoChamber').uid }); }
         for (let k = 0; k < times && this.outcome === 'ongoing'; k++) {
-          if (k === 1) this.ev('info', { text: `${d.name} echoes!` });
+          if (k === 1) { if (d.counter && this.smothered) break; this.ev('info', { text: `${d.name} echoes!` }); }
           this.resolve(c, before);
           if (d.damaging && this.aug.has('bloodFang')) this.healPlayer(2);
         }
@@ -400,7 +468,9 @@ const Core = (() => {
         if (this.outcome !== 'ongoing') return;
       }
       for (const art of this.artifacts.slice()) {
-        if (art.id === 'cinderLamp') { this.ev('artifactFires', { uid: art.uid }); this.hitFront('enemy', this.N(art)); }
+        if (art.id === 'manaPrism' && this.energy > 0) { this.ev('artifactFires', { uid: art.uid }); this.draw(1); }
+        else if (art.id === 'seerCandle' && this.hand.length === 0) { this.ev('artifactFires', { uid: art.uid }); this.draw(2); }
+        else if (art.id === 'cinderLamp') { this.ev('artifactFires', { uid: art.uid }); this.hitFront('enemy', this.N(art)); }
         else if (art.id === 'brazier') { this.ev('artifactFires', { uid: art.uid }); this.applyScorch(this.N(art)); }
         else if (art.id === 'clockworkHeart' && !this.allies.player) {
           this.ev('artifactFires', { uid: art.uid });
@@ -408,6 +478,23 @@ const Core = (() => {
         }
         if (this.outcome !== 'ongoing') return;
       }
+      if (this.canRespond()) { this.phase = 'respond'; this.ev('respond'); return; }
+      this.enemyPhase();
+    }
+    // True if a Flash card could be cast before the enemy acts.
+    canRespond() {
+      if (this.outcome !== 'ongoing' || !this.intent) return false;
+      const was = this.phase; this.phase = 'respond';
+      const ok = this.hand.some(c => this.canPlay(c));
+      this.phase = was; return ok;
+    }
+    // Done responding (or nothing to respond with): the enemy acts.
+    pass() {
+      if (this.phase !== 'respond' || this.outcome !== 'ongoing') return;
+      this.phase = 'main';
+      this.enemyPhase();
+    }
+    enemyPhase() {
       if (this.enemyBlock !== 0 && this.trick !== 'stoneskin') { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
       if (this.smothered) {
         this.smothered = false;
@@ -428,7 +515,8 @@ const Core = (() => {
     }
 
     resolve(c, spellsBefore = 0) {
-      const sb = this.spellBonus, n = i => this.N(c, i);
+      const fd = card(c.id), n = i => this.N(c, i);
+      const sb = this.spellBonus + (fd.flash && fd.damaging ? this.flashBonus : 0) + (fd.flash && this.phase === 'respond' && this.aug.has('stormGlass') ? 4 : 0);
       switch (c.id) {
         case 'strike': case 'emberBolt': case 'searingBolt': case 'firestorm': case 'inferno': this.hitFront('enemy', n(0) + sb); break;
         case 'flameJab': this.hitFront('enemy', n(0) + sb); this.draw(1); break;
@@ -471,6 +559,19 @@ const Core = (() => {
         case 'catalyst': this.applyScorch(this.scorch); break;
         case 'wildfire': if (this.scorch > 0) this.hitFace('enemy', this.scorch + sb, true); this.applyScorch(n(0)); break;
         case 'glimmer': this.draw(1); break;
+        case 'quickBolt': case 'arcBolt': this.hitFront('enemy', n(0) + sb); break;
+        case 'manaBolt': this.hitFront('enemy', n(0) + n(1) * ((this.spellsCast || 1) - 1) + sb); break;
+        case 'parry': this.gainBlock(n(0)); break;
+        case 'insight': this.draw(2); break;
+        case 'reprisal': this.hitFront('enemy', (this.phase === 'respond' ? n(1) : n(0)) + sb); break;
+        case 'negate': case 'spellSnare': case 'counterspell': this.counter(); break;
+        case 'manaDrain': this.counter(); this.bonusEnergy += 2; break;
+        case 'timeStop': this.counter(); this.draw(2); break;
+        case 'deflection': {
+          const i = this.intent;
+          if (i) { const dmg = Math.max(0, i.amount + this.enrage) * (i.hits || 1); this.ev('info', { text: 'Deflected!' }); this.counter(); this.hitFace('enemy', dmg); }
+          break;
+        }
         case 'ritual': this.energy += 3; this.ev('energy'); break;
         case 'spellstorm': if (spellsBefore > 0) this.hitFront('enemy', n(0) * spellsBefore + sb); else this.ev('info', { text: 'No other spells cast this turn.' }); break;
         case 'leechBite': this.hitFront('enemy', n(0) + sb); this.healPlayer(n(0) + sb); break;
@@ -491,6 +592,16 @@ const Core = (() => {
       }
     }
 
+    counter() {
+      if (this.smothered) return;
+      this.smothered = true;
+      this.ev('countered');
+      this.ev('status');
+      if (this.aug.has('mirrorMind')) this.draw(1);
+      for (const a of this.artifacts.slice()) {
+        if (a.id === 'prismWard' && this.outcome === 'ongoing') { this.ev('artifactFires', { uid: a.uid }); this.hitFront('enemy', this.N(a)); this.draw(1); }
+      }
+    }
     applyScorch(n) {
       if (n <= 0 || this.outcome !== 'ongoing') return;
       this.scorch += n + (this.aug.has('kindledWounds') ? 2 : 0);
@@ -512,6 +623,7 @@ const Core = (() => {
       }
       this.artifacts.push({ uid: c.uid, id: c.id, lvl: c.lvl || 0, charges: card(c.id).charges });
       this.ev('artifacts');
+      if (c.id === 'debtLedger') this.draw(3);
     }
 
     summonPlayer(id, lvl = 0, srcUid = null) {
@@ -560,7 +672,7 @@ const Core = (() => {
       return 0;
     }
     enemyAttack(raw, skipAlly) {
-      let dmg = Math.max(0, raw - this.weaken);
+      let dmg = Math.max(0, raw - this.weaken + 2 * this.count('howlingBell'));
       const i = this.artifacts.findIndex(a => a.id === 'mirrorShard');
       if (i >= 0) {
         const s = this.artifacts[i];
@@ -635,7 +747,7 @@ const Core = (() => {
       this.checkOutcome();
     }
     gainAsh(n) {
-      if (n <= 0) return;
+      if (n <= 0 || !this.usesAsh) return;
       this.ashGainedTotal += n;
       const before = this.ash;
       this.ash = Math.min(this.ashNeeded, this.ash + n);
@@ -756,14 +868,15 @@ const Core = (() => {
   const UNLOCKS = [
     ['vitality1', 'Vitality I', '+3 max HP.', 40, null],
     ['themeGiants', 'Giants', 'Adds the Giants theme: big creatures and buffs.', 50, null],
-    ['hotterBurn', 'Hotter Burn I', 'Burn deals +2 damage.', 60, null],
-    ['themeHex', 'Hex', 'Adds the Hex theme: curses and counters.', 70, null],
+    ['hotterBurn', 'Hotter Burn I', 'Pyromancer: Burn deals +2 damage.', 60, null],
     ['widerChoice', 'Wider Choice', 'Choose from 4 card bundles instead of 3.', 80, null],
     ['vitality2', 'Vitality II', '+3 max HP.', 100, 'vitality1'],
-    ['themePyre', 'Pyre', 'Adds the Pyre theme: Ash and Burn.', 90, null],
+    ['themePyre', 'Pyre', 'Pyromancer: adds the Pyre theme (Ash and Burn).', 90, null],
     ['treasureHunter', 'Treasure Hunter', 'Choose from 4 Augments instead of 3.', 110, null],
     ['headStart', 'Head Start', 'Start each run with a random Augment.', 150, null],
-    ['hotterBurn2', 'Hotter Burn II', 'Burn deals +2 damage.', 120, 'hotterBurn'],
+    ['hotterBurn2', 'Hotter Burn II', 'Pyromancer: Burn deals +2 damage.', 120, 'hotterBurn'],
+    ['focus1', 'Focus I', 'Arcanist: Flash damage spells deal +2 damage.', 60, null],
+    ['focus2', 'Focus II', 'Arcanist: Flash damage spells deal +2 damage.', 120, 'focus1'],
     ['vitality3', 'Vitality III', '+3 max HP.', 160, 'vitality2'],
   ].map(([id, name, detail, cost, requires]) => ({ id, name, detail, cost, requires }));
 
@@ -771,11 +884,13 @@ const Core = (() => {
   const Meta = {
     vitality: m => ['vitality1', 'vitality2', 'vitality3'].filter(u => m.unlocked.includes(u)).length,
     burnBonus: m => ['hotterBurn', 'hotterBurn2'].filter(u => m.unlocked.includes(u)).length * 2,
-    themes: m => {
-      const t = ['embers', 'bulwark', 'swarm', 'artifice', 'scorch', 'spellbound', 'bloodrite', 'echoes'];
-      if (m.unlocked.includes('themeHex')) t.push('hex');
+    // Burn bonus for the Pyromancer, Flash damage bonus for the Arcanist.
+    classBonus: (m, cls) => cls === 'arcanist' ? ['focus1', 'focus2'].filter(u => m.unlocked.includes(u)).length * 2 : Meta.burnBonus(m),
+    themes: (m, cls = 'pyro') => {
+      const t = ['embers', 'bulwark', 'swarm', 'artifice', 'scorch', 'spellbound', 'bloodrite', 'echoes', 'hex'];
       if (m.unlocked.includes('themeGiants')) t.push('giants');
-      if (m.unlocked.includes('themePyre')) t.push('pyre');
+      if (cls === 'pyro' && m.unlocked.includes('themePyre')) t.push('pyre');
+      if (cls === 'arcanist') t.push('arcana');
       return t;
     },
     canBuy: (m, u) => !m.unlocked.includes(u.id) && m.ash >= u.cost && (!u.requires || m.unlocked.includes(u.requires)),
@@ -786,18 +901,19 @@ const Core = (() => {
   // ---------- Run ----------
   const AUGMENT_AFTER = [2, 4, 6];
   const Run = {
-    create(meta, seed) {
+    create(meta, seed, cls = 'pyro') {
       const rng = new RNG(seed);
-      const r = { rngState: 0, maxHP: 30 + 3 * Meta.vitality(meta), deck: STARTER.slice(), stars: STARTER.map(() => 0), augments: [], fight: 1, opponents: [],
+      const start = cls === 'arcanist' ? STARTER_ARC : STARTER;
+      const r = { rngState: 0, cls, maxHP: 30 + 3 * Meta.vitality(meta), deck: start.slice(), stars: start.map(() => 0), augments: [], fight: 1, opponents: [],
                   stage: 'preFight', ashEarned: 0, pendingBundles: [], pendingAugments: [], pendingArtifact: null, empowersLeft: 0, bestTurn: 0 };
       r.opponents = [...rng.shuffle(enemiesOfTier(1)).slice(0, 2), ...rng.shuffle(enemiesOfTier(2)).slice(0, 3),
                      ...rng.shuffle(enemiesOfTier(3)).slice(0, 2), rng.shuffle(enemiesOfTier(4))[0]];
-      if (meta.unlocked.includes('headStart')) r.augments.push(rng.pick(AUGMENT_IDS));
+      if (meta.unlocked.includes('headStart')) r.augments.push(rng.pick(augmentsFor(cls)));
       r.rngState = rng.s;
       return r;
     },
     // Older saves have no stars: fill them in.
-    fix(r) { if (!r) return r; r.stars = r.stars || []; while (r.stars.length < r.deck.length) r.stars.push(0); r.bestTurn = r.bestTurn || 0; r.empowersLeft = r.empowersLeft || 0; return r; },
+    fix(r) { if (!r) return r; r.cls = r.cls || 'pyro'; r.stars = r.stars || []; while (r.stars.length < r.deck.length) r.stars.push(0); r.bestTurn = r.bestTurn || 0; r.empowersLeft = r.empowersLeft || 0; return r; },
     deckCards: r => r.deck.map((id, i) => ({ id, lvl: (r.stars && r.stars[i]) || 0 })),
     empowerable: r => r.deck.map((id, i) => i).filter(i => canEmpower(r.deck[i]) && (r.stars[i] || 0) < MAX_STARS),
     rng(r) { const g = new RNG(1); g.s = r.rngState; return g; },
@@ -809,9 +925,11 @@ const Core = (() => {
       r.ashEarned += b.ashGainedTotal;
       r.bestTurn = Math.max(r.bestTurn || 0, b.bestTurn || 0);
       const g = Run.rng(r);
-      const themes = g.shuffle(Meta.themes(meta)).slice(0, meta.unlocked.includes('widerChoice') ? 4 : 3);
+      Run.fix(r);
+      const fits = c => !c.cls || c.cls === r.cls;
+      const themes = g.shuffle(Meta.themes(meta, r.cls)).slice(0, meta.unlocked.includes('widerChoice') ? 4 : 3);
       r.pendingBundles = themes.map(t => {
-        const pool = cardsOf(t);
+        const pool = cardsOf(t).filter(fits);
         const picks = [];
         let tries = 0;
         while (picks.length < 3 && tries < 40) {
@@ -824,7 +942,7 @@ const Core = (() => {
         return { theme: t, cards: picks.sort((a, b) => card(a).cost - card(b).cost) };
       });
       const owned = new Set(r.deck);
-      r.pendingArtifact = g.pick(cardsOf('legendary').map(c => c.id).filter(id => !owned.has(id))) || null;
+      r.pendingArtifact = g.pick(cardsOf('legendary').filter(fits).map(c => c.id).filter(id => !owned.has(id))) || null;
       r.stage = 'bundle';
       Run.save(r, g);
     },
@@ -848,7 +966,7 @@ const Core = (() => {
       if (AUGMENT_AFTER.includes(r.fight)) {
         const g = Run.rng(r);
         const n = meta.unlocked.includes('treasureHunter') ? 4 : 3;
-        r.pendingAugments = g.shuffle(AUGMENT_IDS.filter(a => !r.augments.includes(a))).slice(0, n);
+        r.pendingAugments = g.shuffle(augmentsFor(r.cls).filter(a => !r.augments.includes(a))).slice(0, n);
         Run.save(r, g);
         r.stage = 'augment';
         return 'augment';
@@ -858,23 +976,26 @@ const Core = (() => {
     },
     takeAugment(r, a) { if (a) r.augments.push(a); r.pendingAugments = []; Run.nextFight(r); },
     nextFight(r) { r.fight++; r.stage = 'preFight'; },
-    ashToBank: (r, won) => r.ashEarned + (r.fight - 1) * 5 + (won ? 40 : 0),
+    // Cinders banked for the Shrine: same for every class.
+    ashToBank: (r, won) => (r.fight - 1) * 10 + (won ? 50 : 0),
   };
 
   const GLOSSARY = [
     ['Block', 'Absorbs damage. Lasts until your next turn.'],
-    ['Ash', 'Gain 1 when your creature dies. Fill it to Burn.'],
+    ['Ash', 'Pyromancer only. Gain 1 when your creature dies. Fill it to Burn.'],
     ['Stoke', 'Pay 2 energy: gain 1 Ash. Once per turn.'],
     ['Burn', 'Spend full Ash: deal big damage that ignores Block. Each Burn deals 6 more.'],
     ['Scorch', 'Start of your turn: deals its amount to the enemy, then drops by 1.'],
     ['Deathrattle', 'Triggers when this creature dies.'],
     ['Lifesteal', 'Damage dealt also heals you.'],
     ['Sacrifice', 'Destroy your creature. You still gain its Ash.'],
-    ['Counter', 'The enemy skips its next action.'],
+    ['Flash', 'Can be cast after you end your turn, before the enemy acts.'],
+    ['Counter', 'Cancel the enemy’s action. Its spells are any move that isn’t an attack.'],
+    ['Battlecry', 'Happens when you play this.'],
     ['Empower ★', 'Boosts a card’s gold numbers by 50%. Max ★★★.'],
   ];
 
-  return { RNG, CARDS, card, cardsOf, THEMES, MAX_STARS, scale, canEmpower, stats, textParts, cardText, STARTER, AUGMENTS, AUGMENT_IDS, ENEMIES, MINIONS, TUNING, Battle,
+  return { RNG, CARDS, card, cardsOf, THEMES, CLASSES, STARTER_ARC, ATTACK_KINDS, augmentsFor, MAX_STARS, scale, canEmpower, stats, textParts, cardText, STARTER, AUGMENTS, AUGMENT_IDS, ENEMIES, MINIONS, TUNING, Battle,
            UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY };
 })();
 if (typeof module !== 'undefined') module.exports = Core;

@@ -1,5 +1,5 @@
 {
-const { card, THEMES, AUGMENTS, ENEMIES, Battle, UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY, RNG, textParts, cardText, stats, MAX_STARS } = Core;
+const { card, CLASSES, THEMES, AUGMENTS, ENEMIES, Battle, UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY, RNG, textParts, cardText, stats, MAX_STARS } = Core;
 const $ = s => document.querySelector(s);
 const app = $('#app');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -215,25 +215,36 @@ function showDeck(entries, title, sub = '') {
 function showMenu() {
   const m = G.meta; let confirmAbandon = false;
   const s = screen(`<div class="menu-hero">${sigil('ashbound-menu', COL.ember, { eye: true, glow: true, lw: 1.6 })}
-<div class="t"><h1>ASHBOUND</h1><div class="dim" style="font:600 17px var(--title)">a roguelike of ash and fire</div></div></div>
+<div class="t"><h1>ASH</h1><div class="dim" style="font:600 17px var(--title)">a roguelike card game</div></div></div>
 <div class="stack">
-${G.run ? `<button class="btn primary" id="cont">Continue Run · Fight ${G.run.fight}</button><button class="btn danger" id="aband">Abandon Run</button>`
+${G.run ? `<button class="btn primary" id="cont">Continue · ${CLASSES[G.run.cls || 'pyro'].name} · Fight ${G.run.fight}</button><button class="btn danger" id="aband">Abandon Run</button>`
         : `<button class="btn primary" id="begin">Begin a Run</button>`}
-<button class="btn" id="shrine">Shrine of Ash</button><button class="btn" id="how">How to Play</button>
+<button class="btn" id="shrine">Shrine</button><button class="btn" id="how">How to Play</button>
 <button class="btn quiet" id="snd">Sound: ${m.soundOn ? 'On' : 'Off'}</button></div>
-<div class="foot">Ash ${m.ash} · Runs ${m.runs} · Victories ${m.wins}</div>`);
-  on(s, '#begin', () => {
-    G.meta.runs++; G.run = Run.create(G.meta, (Math.random() * 4294967296) >>> 0); Store.save();
-    if (!G.meta.seenTutorial) { G.meta.seenTutorial = true; Store.save(); showHowTo(true); } else showPath();
-  });
+<div class="foot">Cinders ${m.ash} · Runs ${m.runs} · Victories ${m.wins}</div>`);
+  on(s, '#begin', () => showClassPick());
   on(s, '#cont', () => continueRun());
   on(s, '#aband', el => {
     if (!confirmAbandon) { confirmAbandon = true; el.textContent = 'Tap again to abandon'; return; }
-    const banked = endRun(false); toast(`Run abandoned. ${banked} Ash banked.`, COL.ash); showMenu();
+    const banked = endRun(false); toast(`Run abandoned. ${banked} Cinders banked.`, COL.ash); showMenu();
   });
   on(s, '#shrine', () => showShrine());
   on(s, '#how', () => showHowTo(false));
   on(s, '#snd', el => { G.meta.soundOn = !G.meta.soundOn; Store.save(); el.textContent = `Sound: ${G.meta.soundOn ? 'On' : 'Off'}`; });
+}
+function showClassPick() {
+  let chosen = null;
+  const s = screen(`<h1 class="center" style="font-size:32px">Choose a Class</h1>
+<div class="scroll" style="display:flex;flex-direction:column;gap:12px;padding-top:8px">${Object.entries(CLASSES).map(([id, c]) => `
+<div class="panel cls" data-c="${id}">${sigil('class-' + id, id === 'pyro' ? COL.ember : COL.frost, { eye: true, lw: 2 })}
+<div><h2>${c.name}</h2><div class="label" style="color:${id === 'pyro' ? 'var(--ember)' : 'var(--frost)'}">${c.power}</div><p class="small" style="margin:4px 0 0">${c.blurb}</p></div></div>`).join('')}</div>
+<div class="stack" style="padding-top:8px"><button class="btn primary" id="go" disabled>Begin</button><button class="btn quiet" id="back">Back</button></div>`);
+  on(s, '.cls', el => { chosen = el.dataset.c; s.querySelectorAll('.cls').forEach(x => x.classList.toggle('sel', x === el)); $('#go').disabled = false; Sound.play('card'); });
+  on(s, '#back', () => showMenu());
+  on(s, '#go', () => {
+    G.meta.runs++; G.run = Run.create(G.meta, (Math.random() * 4294967296) >>> 0, chosen); Store.save();
+    if (!G.meta.seenTutorial) { G.meta.seenTutorial = true; Store.save(); showHowTo(true); } else showPath();
+  });
 }
 function continueRun() {
   const r = G.run; if (!r) return showMenu();
@@ -282,7 +293,7 @@ let B = null, view = null;
 function startBattle() {
   const r = G.run;
   Run.fix(r);
-  B = new Battle(Run.currentEnemy(r), r.fight, Run.deckCards(r), r.maxHP, r.augments, Meta.burnBonus(G.meta), Run.nextSeed(r));
+  B = new Battle(Run.currentEnemy(r), r.fight, Run.deckCards(r), r.maxHP, r.augments, Meta.classBonus(G.meta, r.cls), Run.nextSeed(r), r.cls);
   B.captureSnaps = true;
   Store.save();
   view = { sel: null, busy: false, done: false, known: new Set(), lastCombo: 0 };
@@ -296,9 +307,9 @@ function startBattle() {
 <div class="board">
 <div class="lane"><span></span><div class="slot enemy" id="slot-enemy"><span class="empty">its minion</span></div><span></span></div>
 <div class="divider"></div>
-<div class="lane"><div><button class="side-btn" id="stoke">${ICON.ash(COL.ash)}<b>STOKE</b></button><div class="side-cap" id="stokecap"></div></div>
+<div class="lane">${B.usesAsh ? `<div><button class="side-btn" id="stoke">${ICON.ash(COL.ash)}<b>STOKE</b></button><div class="side-cap" id="stokecap"></div></div>` : '<span></span>'}
 <div class="slot" id="slot-player"><span class="empty">your creature</span></div>
-<div><div class="pips" id="pips"></div><button class="side-btn" id="burn">${ICON.flame(COL.ember)}<b id="burnl">BURN</b></button></div></div>
+${B.usesAsh ? `<div><div class="pips" id="pips"></div><button class="side-btn" id="burn">${ICON.flame(COL.ember)}<b id="burnl">BURN</b></button></div>` : '<span></span>'}</div>
 <div><div class="arts" id="arts"></div><div class="center faint" style="font:700 8px var(--body)">ARTIFACTS</div></div>
 </div>
 <div class="status"><div class="stat" id="hp"></div><div class="stat" id="blk"></div><div class="stat energy" id="en"></div>
@@ -307,8 +318,7 @@ function startBattle() {
 <div class="hand" id="hand"></div></div>`);
   $('#end').onclick = () => { Sound.play('tap'); doEndTurn(); };
   if (!G.meta.seenHold) { G.meta.seenHold = true; Store.save(); setTimeout(() => toast('Tip: hold any card to read it. Tap the enemy to see its trick.', COL.gold), 900); }
-  $('#stoke').onclick = () => { Sound.play('tap'); doStoke(); };
-  $('#burn').onclick = () => { Sound.play('tap'); doBurn(); };
+  if (B.usesAsh) { $('#stoke').onclick = () => { Sound.play('tap'); doStoke(); }; $('#burn').onclick = () => { Sound.play('tap'); doBurn(); }; }
   $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Sorted, not in draw order');
   $('#pu').onclick = () => showDeck(B.discard, 'Used Pile');
   s.addEventListener('click', e => { if (!e.target.closest('.card') && view.sel != null) { view.sel = null; renderHand(B.snapshot()); } });
@@ -332,7 +342,8 @@ function render(sn) {
   const ii = sn.intentInfo, ICONS = { attack: ['sword', COL.blood], lunge: ['lunge', COL.blood], block: ['shield', COL.frost], heal: ['heart', COL.heal], enrage: ['up', COL.blood], wither: ['down', COL.vow], shatter: ['crack', COL.gold], summon: ['plus', COL.blood], countered: ['none', COL.ash] };
   if (ii) { const [ic, cc] = ICONS[ii.kind] || ['none', COL.ash]; $('#ii').innerHTML = ICON[ic](cc); $('#in').textContent = ii.num; $('#in').style.color = cc; }
   const LBL = { attack: 'Attack', lunge: 'Lunge', block: 'Block', heal: 'Heal', enrage: 'Enrage', wither: 'Wither', shatter: 'Shatter', summon: 'Summon', countered: 'Countered' };
-  $('#it').innerHTML = ii ? `<b>${LBL[ii.kind] || ''}</b> ${esc(sn.intent[1].replace(/ \(−\d+\)$/, ''))}` : '';
+  const isSpell = ii && !['attack', 'lunge', 'countered'].includes(ii.kind);
+  $('#it').innerHTML = ii ? `<b>${LBL[ii.kind] || ''}</b>${isSpell ? ' <i class="sp">SPELL</i>' : ''} ${esc(sn.intent[1].replace(/ \(−\d+\)$/, ''))}` : '';
   $('#ehp').style.width = Math.max(0, Math.min(100, 100 * sn.enemyHP / sn.enemyMaxHP)) + '%';
   $('#ehpt').textContent = `${Math.max(0, sn.enemyHP)} / ${sn.enemyMaxHP}`;
   const cb = $('#combo'), td = sn.turnDamage || 0;
@@ -363,11 +374,16 @@ function render(sn) {
   $('#hp').innerHTML = `<span style="width:18px">${ICON.heart(COL.blood)}</span>${Math.max(0, sn.hp)}/${sn.maxHP}`;
   $('#blk').innerHTML = sn.block > 0 ? `<span style="width:20px">${ICON.shield(COL.frost)}</span>${sn.block}` : '';
   $('#en').innerHTML = `<span style="width:18px">${ICON.flame(COL.ember)}</span>${sn.energy}/${sn.maxE}`;
-  $('#pips').innerHTML = [...Array(sn.ashNeeded)].map((_, i) => `<i class="${i < sn.ash ? 'on' : ''}"></i>`).join('');
-  const burn = $('#burn'); burn.className = 'side-btn ' + (sn.canBurn ? 'ready' : 'off');
-  $('#burnl').textContent = sn.canBurn ? `BURN ${sn.burnDamage}` : 'BURN';
-  $('#stoke').className = 'side-btn ' + (sn.canStoke ? '' : 'off');
-  $('#stokecap').textContent = `${sn.stokePrice} energy: +1 Ash`;
+  if (sn.usesAsh) {
+    $('#pips').innerHTML = [...Array(sn.ashNeeded)].map((_, i) => `<i class="${i < sn.ash ? 'on' : ''}"></i>`).join('');
+    const burn = $('#burn'); burn.className = 'side-btn ' + (sn.canBurn ? 'ready' : 'off');
+    $('#burnl').textContent = sn.canBurn ? `BURN ${sn.burnDamage}` : 'BURN';
+    $('#stoke').className = 'side-btn ' + (sn.canStoke ? '' : 'off');
+    $('#stokecap').textContent = `${sn.stokePrice} energy: +1 Ash`;
+  }
+  const responding = sn.phase === 'respond';
+  $('#bt').classList.toggle('responding', responding);
+  if (!view.busy || responding) $('#end').textContent = responding ? 'Let it happen' : 'End Turn';
   $('#arts').innerHTML = [...Array(MAX_ARTIFACTS)].map((_, i) => {
     const a = sn.artifacts[i];
     return a ? `<div class="art-slot has" data-uid="${a.uid}" data-id="${a.id}" data-lvl="${a.lvl || 0}">${sigil(a.id, COL.gold, { ring: false, lw: 3 })}${a.charges > 0 ? `<span class="ch">${a.charges}</span>` : ''}</div>` : '<div class="art-slot"></div>';
@@ -397,7 +413,7 @@ function renderHand(sn) {
     el.oncontextmenu = e => e.preventDefault();
     el.onclick = e => { e.stopPropagation(); if (held) { held = false; return; } tapCard(+el.dataset.uid, el); };
   });
-  $('#hint').textContent = view.sel != null ? 'Tap again to play' : 'Hold a card to read it';
+  $('#hint').textContent = view.sel != null ? 'Tap again to play' : B && B.phase === 'respond' ? 'Cast Flash cards, or let it happen' : 'Hold a card to read it';
   $('#hint').classList.toggle('on', view.sel != null);
 }
 function tapCard(uid, el) {
@@ -415,7 +431,11 @@ function tapCard(uid, el) {
     if (kws.length) toast(kws.map(k => `${k}: ${KEYWORDS[k]}`).join('  ·  '), COL.paper);
   }
 }
-function doEndTurn() { if (view.busy || view.done) return; view.sel = null; buzz(15); B.endTurn(); play(B.takeEvents()); }
+function doEndTurn() {
+  if (view.busy || view.done) return; view.sel = null; buzz(15);
+  if (B.phase === 'respond') B.pass(); else B.endTurn();
+  play(B.takeEvents());
+}
 function doStoke() {
   if (view.busy || view.done) return;
   if (!B.canStoke) { toast(B.stokedThisTurn ? 'Already stoked this turn.' : B.ash >= B.ashNeeded ? 'Ash is full. Burn!' : `Stoke costs ${B.stokePrice} energy.`, COL.ash); return; }
@@ -437,7 +457,7 @@ async function play(events) {
       case 'allyHit': { const n = $(`#slot-${ev.side} .ally`); anim(n, 'shake'); floatAt(n, `-${ev.amount}`, COL.blood, numSize(ev.amount)); Sound.play('hit'); break; }
       case 'allyDied': {
         const n = $(`#slot-${ev.side} .ally`);
-        if (n) { n.classList.add('die'); if (ev.side === 'player') floatAt(n, '+1 Ash', COL.ash, 16); await sleep(view.fast ? 40 : 200); }
+        if (n) { n.classList.add('die'); if (ev.side === 'player' && B.usesAsh) floatAt(n, '+1 Ash', COL.ash, 16); await sleep(view.fast ? 40 : 200); }
         Sound.play('death'); break;
       }
       case 'faceHit':
@@ -455,6 +475,8 @@ async function play(events) {
       case 'enemyActs': anim($('#cmd'), 'pop'); anim($('#intent'), 'pop'); if (!view.fast) banner(ev.text, COL.blood, .3, 560); Sound.play('enemy'); break;
       case 'burn': flash(COL.ember, .35); anim($('#bt'), 'quake'); banner(`BURN!  ${ev.amount}`, COL.ember, .55, 700); Sound.play('burn'); break;
       case 'info': if (!view.fast) banner(ev.text, COL.paper, .45, 520); break;
+      case 'respond': view.fast = false; banner('Respond?', COL.frost, .5, 650); Sound.play('card'); break;
+      case 'countered': anim($('#intent'), 'shake'); banner('COUNTERED!', COL.frost, .55, 650); flash(COL.frost, .25); buzz(35); Sound.play('shield'); break;
       case 'artifacts': Sound.play('shield'); break;
     }
     if (sn) render(sn);
@@ -557,7 +579,7 @@ function showEnd(won, fight, banked, killer, bestTurn = 0) {
 <div class="t"><h1 style="font-size:40px">${won ? 'Unbound' : 'Ashes to Ashes'}</h1>
 <div class="dim" style="font:600 17px var(--title);max-width:280px;margin:6px auto 0">${won ? 'You walked through every fire and came out the other side.' : `Felled by ${esc(killer)} in fight ${fight} of ${TOTAL_FIGHTS}.`}</div></div></div>
 <div class="center" style="margin-bottom:16px"><div class="dim">Fights won: <b style="color:var(--paper)">${won ? TOTAL_FIGHTS : fight - 1}</b></div>
-<div style="font:700 24px var(--body);color:var(--ash);margin-top:8px">+${banked} Ash banked</div><div class="dim small">Shrine total: ${G.meta.ash}</div>
+<div style="font:700 24px var(--body);color:var(--ash);margin-top:8px">+${banked} Cinders banked</div><div class="dim small">Shrine total: ${G.meta.ash}</div>
 ${bestTurn ? `<div class="best">Biggest turn: ${bestTurn} damage${bestTurn >= (G.meta.bestTurn || 0) ? ' · new record!' : ''}</div>` : ''}</div>
 <div class="stack"><button class="btn primary" id="shrine">Visit the Shrine</button><button class="btn" id="menu">Main Menu</button></div>`);
   setTimeout(() => Sound.play('ash'), 400);
@@ -573,7 +595,7 @@ function showShrine() {
 <span class="dim small" style="font-weight:600">${locked ? `Requires ${req}.` : u.detail}</span></div>
 ${owned ? '<span class="owned">Offered</span>' : `<button class="btn ${Meta.canBuy(m, u) ? 'primary' : ''}" data-u="${u.id}" ${Meta.canBuy(m, u) ? '' : 'disabled'}>${u.cost} Ash</button>`}</div>`;
   }).join('');
-  const s = screen(`<h1 class="center" style="font-size:32px">Shrine of Ash</h1><div class="center" style="font:700 16px var(--body);color:var(--ash);margin:4px 0 10px">${m.ash} Ash to offer</div>
+  const s = screen(`<h1 class="center" style="font-size:32px">Shrine</h1><div class="center" style="font:700 16px var(--body);color:var(--ash);margin:4px 0 10px">${m.ash} Cinders to offer</div>
 <div class="scroll"><div class="list">${rows}</div><div class="center faint small" style="font-weight:700;padding:8px 0">Runs ${m.runs} · Victories ${m.wins} · Best fight ${Math.min(m.bestFight, TOTAL_FIGHTS)}${m.bestTurn ? ` · Biggest turn ${m.bestTurn}` : ''}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn" id="back">Back</button></div>`);
   on(s, '[data-u]', el => { const u = UNLOCKS.find(x => x.id === el.dataset.u); if (Meta.buy(G.meta, u)) { Sound.play('unlock'); buzz(40); Store.save(); showShrine(); } });
@@ -582,18 +604,21 @@ ${owned ? '<span class="owned">Offered</span>' : `<button class="btn ${Meta.canB
 function showHowTo(thenPath) {
   const sections = [
     ['Goal', 'Defeat 8 enemies in a row. You heal fully between fights.'],
+    ['Classes', [['Pyromancer', 'Ash power: creature deaths and Stoke fill Ash; Burn for big damage.'],
+                 ['Arcanist', 'No power. Its starting spells have Flash, so it plays on the enemy’s turn and counters its moves.']]],
     ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it. Hold any card to read it full size.'],
     ['Cards', [['Creature', 'Your one fighter. It takes enemy hits first and attacks at the end of your turn. A new creature replaces the old one.'],
                ['Spell', 'A one-time effect.'],
                ['Artifact', 'Stays in play. Max 3; a 4th replaces your oldest.']]],
-    ['Ash and Burn', 'Gain 1 Ash when your creature dies, or Stoke for 2 energy (once per turn). With full Ash, Burn: big damage that ignores Block. Each Burn deals 6 more than the last.'],
+    ['Flash and counters', 'After you end your turn, if you can cast a Flash card, you get a Respond window before the enemy acts. Use leftover energy. Counters cancel the move shown in the NEXT box; enemy spells are any move that isn’t an attack.'],
+    ['Pyromancer: Ash and Burn', 'Gain 1 Ash when your creature dies, or Stoke for 2 energy (once per turn). With full Ash, Burn: big damage that ignores Block. Each Burn deals 6 more than the last.'],
     ['The enemy', [['NEXT', 'The box at the top shows its next move.'],
                    ['Passive', 'Every enemy has a trick, shown under its name.'],
                    ['Lunge', 'Skips your creature and hits you.'],
                    ['Wither', 'Your creature loses attack.'],
                    ['Shatter', 'Destroys your oldest artifact.']]],
     ['After each win', 'Take 3 cards from one theme, or 1 Legendary Artifact. Then Empower a card: each ★ boosts its gold numbers by 50%. After fights 2, 4 and 6, choose an Augment for the rest of the run.'],
-    ['Between runs', 'Ash you bank buys permanent upgrades at the Shrine.'],
+    ['Between runs', 'Every run banks Cinders. Spend them at the Shrine on permanent upgrades.'],
   ];
   const body = b => typeof b === 'string' ? `<p>${b}</p>` : `<div class="gl">${b.map(([k, v]) => `<b>${k}</b><span class="dim">${v}</span>`).join('')}</div>`;
   const s = screen(`<h1 class="center" style="font-size:32px">How to Play</h1>

@@ -14,16 +14,21 @@ async def main():
         await page.wait_for_selector('#begin', timeout=8000)
         await page.screenshot(path='shots/1_menu.png')
         await page.click('#begin'); await page.wait_for_timeout(400)
+        await (await page.query_selector_all('.cls'))[1].click(); await page.wait_for_timeout(150)
+        await page.screenshot(path='shots/1b_class.png')
+        await page.click('#go'); await page.wait_for_timeout(400)
         await page.screenshot(path='shots/2_howto.png')
         await page.click('#go'); await page.wait_for_timeout(400)
         await page.screenshot(path='shots/3_path.png')
         await page.click('#fight'); await page.wait_for_timeout(1500)
         await page.screenshot(path='shots/4_battle.png')
-        fights = 0
+        fights = 0; shot_resp = False
         for step in range(400):
             if await page.query_selector('#bt'):
                 busy = await page.evaluate('document.querySelector("#end") && document.querySelector("#end").disabled')
                 if busy: await page.wait_for_timeout(300); continue
+                if not shot_resp and await page.query_selector('#bt.responding'):
+                    shot_resp = True; await page.screenshot(path='shots/5b_respond.png')
                 cards = await page.query_selector_all('#hand .card:not(.off)')
                 played = False
                 for c in cards[:1]:

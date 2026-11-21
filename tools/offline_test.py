@@ -11,6 +11,7 @@ async def main():
         await page.evaluate("navigator.serviceWorker.ready")
         await page.wait_for_timeout(1500)
         await page.click('#begin'); await page.wait_for_timeout(300)
+        await page.click('.cls'); await page.click('#go'); await page.wait_for_timeout(300)
         await ctx.set_offline(True)
         await page.reload()
         ok = await page.wait_for_selector('#cont', timeout=8000)

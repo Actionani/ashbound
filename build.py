@@ -1,4 +1,4 @@
-"""Builds Ashbound into one page.
+"""Builds Ash into one page.
   python3 build.py           -> index.html for GitHub Pages (offline-capable, with manifest + service worker)
   python3 build.py artifact  -> dist/artifact.html for the Claude artifact (no service worker)
 """
@@ -16,9 +16,9 @@ html = f'''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Ashbound">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Ash">
 <meta name="theme-color" content="#0d0c10"><meta name="ashbound-version" content="{version}">
-<title>Ashbound</title>{pwa_head}
+<title>Ash</title>{pwa_head}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:wght@700&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
 <style>

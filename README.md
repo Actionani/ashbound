@@ -1,6 +1,6 @@
-# Ashbound
+# Ash
 
-A roguelike card game for the phone. Fight 8 foes in a row, build your deck from themed bundles, pick augments, and burn your foes with Ash. Every picture and sound is generated in code.
+A roguelike card game for the phone (formerly Ashbound; the repo and link keep the old name). Fight 8 foes in a row, build your deck from themed bundles, pick augments, and burn your foes with Ash. Every picture and sound is generated in code.
 
 **Play:** https://actionani.github.io/ashbound/ (open in Safari → Share → Add to Home Screen; after the first visit it works offline).
 

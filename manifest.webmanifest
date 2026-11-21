@@ -1,6 +1,6 @@
 {
-  "name": "Ashbound",
-  "short_name": "Ashbound",
+  "name": "Ash",
+  "short_name": "Ash",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
