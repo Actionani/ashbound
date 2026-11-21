@@ -16,14 +16,15 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   e.respondWith(caches.open(CACHE).then(async cache => {
     const hit = await cache.match(req, { ignoreSearch: true });
+    // A failed or error response (like a 404 while GitHub redeploys) counts as "no network": use the saved copy.
     const net = fetch(req, isPage(req) ? { cache: 'no-store' } : undefined).then(res => {
-      if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
-      return res;
+      if (res && (res.ok || res.type === 'opaque')) { cache.put(req, res.clone()); return res; }
+      return null;
     }).catch(() => null);
     if (isPage(req)) {
       // Wait up to 3 seconds for the latest version, then use the saved copy.
       const timeout = new Promise(r => setTimeout(() => r(null), 3000));
-      return (await Promise.race([net, timeout])) || hit || (await net) || new Response('Offline', { status: 503 });
+      return (await Promise.race([net, timeout])) || hit || (await net) || (await cache.match('./index.html')) || new Response('Offline', { status: 503 });
     }
     return hit || (await net) || new Response('Offline', { status: 503 });
   }));
