@@ -284,3 +284,35 @@ button { font: inherit; color: inherit; }
 .ctag { font: 700 9.5px var(--body); padding: 1px 6px; border-radius: 6px; vertical-align: middle; }
 .ctag.pyro { color: var(--ember); border: 1px solid var(--ember); }
 .ctag.arc { color: var(--frost); border: 1px solid var(--frost); }
+/* v8: readable cards */
+.hand { --cw: min(96px, calc((100vw - 12px) / 4.1)); }
+.card { padding: 3px; }
+.card .nm { font-size: calc(var(--cw) * .14); height: 2.15em; line-height: 1.05; }
+.card .nm.long { font-size: calc(var(--cw) * .118); }
+.card .art { width: 36%; margin: 0; }
+.hand .card .art { width: 30%; }
+.card .ty { font-size: calc(var(--cw) * .078); margin-top: 1px; }
+.card .tx { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; margin-top: 2px;
+  padding: 2px 3px calc(var(--cw) * .05); border-radius: 6px; background: rgba(0,0,0,.28);
+  font: 600 calc(var(--cw) * .128) var(--body); line-height: 1.13; color: var(--paper); }
+.card .tx.s { font-size: calc(var(--cw) * .15); }
+.card .tx.l { font-size: calc(var(--cw) * .112); }
+.card .tx.xl { font-size: calc(var(--cw) * .1); line-height: 1.08; }
+.card.cr .tx { font-size: calc(var(--cw) * .11); padding-bottom: calc(var(--cw) * .27); }
+.card .tx b.n { font-weight: 800; color: #fff; }
+.card .tx b.kw { font-weight: 800; color: var(--c); filter: brightness(1.25); }
+.card .tx b.up { color: var(--gold); }
+/* Bosses */
+.hpbar.boss { border-color: var(--blood); box-shadow: 0 0 10px rgba(224,82,106,.35); }
+.hpbar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--paper); opacity: .8; z-index: 2; text-decoration: none; }
+.passive .p2 { color: var(--blood); } .passive .p2 b { color: var(--blood); }
+.intent.charging { border-color: var(--gold); box-shadow: 0 0 0 1.5px var(--gold), 0 0 16px rgba(232,194,106,.3); }
+.intent .brk { position: relative; display: block; height: 13px; margin-top: 3px; border-radius: 7px; background: var(--panel2); overflow: hidden; border: 1px solid var(--faint); }
+.intent .brk i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold); opacity: .55; transition: width .2s; }
+.intent .brk em { position: relative; font: 800 9px/13px var(--body); font-style: normal; color: var(--paper); }
+.hand { overflow-x: auto; overflow-y: hidden; justify-content: flex-start; padding: 24px 6px 2px; height: calc(var(--cw) * 1.48 + 30px);
+  scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.hand::-webkit-scrollbar { display: none; }
+.hand .card { scroll-snap-align: start; }
+.hand:not(.scrolls) .card:first-child { margin-left: auto; } .hand:not(.scrolls) .card:last-child { margin-right: auto; }
+.hand.scrolls { mask-image: linear-gradient(90deg, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); }

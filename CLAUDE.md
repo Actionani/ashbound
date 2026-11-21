@@ -4,7 +4,7 @@ Personal game for Ani. Ani gave Claude full design control, but prefers concise 
 
 ## Updating the game
 1. Edit `src/` (rules in core.js, screens in ui.js, look in style.css).
-2. `node tools/test.js` must print ALL PASS. Add a test for new rules.
+2. `node tools/test.js` must print ALL PASS. Add a test for new rules. Also `node -e "new Function(require('fs').readFileSync('src/ui.js','utf8'))"` to catch UI syntax errors (watch apostrophes inside single-quoted strings; use ’).
 3. `node tools/sim.js 800` (both classes; `node tools/sim.js 800 arcanist` for one): keep every theme's win rate within a few points of the others, and the two classes close to each other (Voltron is fine, but must not dominate; never add penalties like "Strain" — make alternatives strong instead). Fresh-save bot win rate around 5–15%.
 4. `python3 -m http.server 8765 &` then `python3 tools/ui_test.py`: no errors.
 5. `python3 build.py` (and `python3 build.py artifact` for the Claude artifact copy), commit `index.html` + `sw.js` + sources, push to `main`. Pages redeploys; phones pick it up next time they're online.

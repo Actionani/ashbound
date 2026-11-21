@@ -64,6 +64,8 @@ function score(b, c) {
 // How much is it worth to counter the enemy's current action?
 function counterWorth(b) {
   const i = b.intent; if (!i || b.smothered) return 0;
+  if (i.kind === 'channel') return 20;
+  if (i.kind === 'stagger') return 0;
   if (C.ATTACK_KINDS.includes(i.kind)) { const d = Math.max(0, i.amount + b.enrage - b.weaken) * (i.hits || 1); return d >= 7 ? 12 + d : 0; }
   return { heal: 18, summon: 16, shatter: b.artifacts.length ? 18 : 0, enrage: 15, wither: b.allies.player ? 12 : 0, block: 5 }[i.kind] || 0;
 }

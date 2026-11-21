@@ -1,7 +1,7 @@
 // Offline support.
 // The game page itself is network-first (so updates show the first time you open it online),
 // falling back to the cache when offline or slow. Everything else is cache-first.
-const CACHE = 'ashbound-b39e36b492';
+const CACHE = 'ashbound-bde3230558';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

@@ -40,6 +40,7 @@ function sigil(key, color, o = {}) {
 }
 const ICON = {
   heart: c => `<svg viewBox="-10 -10 20 20"><path d="M0,9C14,0 7,-12 0,-5C-7,-12 -14,0 0,9Z" fill="${c}"/></svg>`,
+  charge: c => `<svg viewBox="-12 -12 24 24"><circle r="9" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="4 3"/><path d="M-2,-6L3,-1H-1L2,6L-4,0H0Z" fill="${c}"/></svg>`,
   shield: c => `<svg viewBox="-10 -10 20 20"><path d="M0,-9L8,-6Q8,4 0,9Q-8,4 -8,-6Z" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="1.5"/></svg>`,
   flame: c => `<svg viewBox="-10 -10 20 20"><path d="M0,-10C11,0 8,9 0,9C-8,9 -11,0 0,-10Z" fill="${c}"/></svg>`,
   ash: c => `<svg viewBox="-10 -10 20 20" fill="${c}">${[[-5, 5], [0, 5], [5, 5], [-2.5, 0], [2.5, 0], [0, -5]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2"/>`).join('')}</svg>`,
@@ -181,11 +182,13 @@ function on(root, sel, fn) { root.querySelectorAll(sel).forEach(el => el.addEven
 function cardHTML(id, o = {}) {
   const d = card(id), c = typeCol(d.type), lvl = o.lvl || 0;
   const ty = d.theme === 'starter' ? d.type : `${d.type} · ${THEMES[d.theme][0]}`;
-  const tx = textParts(id, lvl).map(p => p.t != null ? esc(p.t) : p.up ? `<b class="up">${p.n}</b>` : p.n).join('');
+  const KW = /\b(Flash|Deathrattle|Lifesteal|Battlecry|Sacrifice|Counter|Scorch|Block|Burn|Ash)\b/g;
+  const tx = textParts(id, lvl).map(p => p.t != null ? esc(p.t).replace(KW, '<b class="kw">$1</b>') : `<b class="${p.up ? 'up' : 'n'}">${p.n}</b>`).join('');
+  const len = cardText(id, lvl).length, tcls = len <= 22 ? 's' : len <= 48 ? '' : len <= 70 ? 'l' : 'xl';
   const [pw, hp] = stats(id, lvl), up = lvl > 0 ? ' up' : '';
   return `<div class="card ${d.type === 'creature' ? 'cr' : ''} ${lvl ? 'lv' : ''} ${o.cls || ''}" style="--c:${c}" ${o.uid != null ? `data-uid="${o.uid}"` : ''} ${o.attr || ''}>
-<div class="cost">${d.cost}</div><div class="nm">${esc(d.name)}</div>${sigil(id, c, { cls: 'art', lw: 2.6 })}
-<div class="ty">${lvl ? `<span class="stars">${lvl <= 3 ? '★'.repeat(lvl) : '★' + lvl}</span>` : ''}${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx">${tx}</div>` : ''}
+<div class="cost">${d.cost}</div><div class="nm ${d.name.length > 12 ? 'long' : ''}">${esc(d.name)}</div>${sigil(id, c, { cls: 'art', lw: 2.6 })}
+<div class="ty">${lvl ? `<span class="stars">${lvl <= 3 ? '★'.repeat(lvl) : '★' + lvl}</span>` : ''}${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx ${tcls}"><span>${tx}</span></div>` : ''}
 ${d.type === 'creature' ? `<div class="p${up}">${pw}</div><div class="h${up}">${hp}</div>` : ''}</div>`;
 }
 const KEYWORDS = Object.fromEntries(GLOSSARY.map(([k, v]) => [k.replace(/ ★$/, ''), v]));
@@ -301,10 +304,10 @@ function startBattle() {
   const e = B.enemy, col = `hsl(${Math.round(e.hue * 360)} 70% 68%)`;
   const s = screen(`<div class="bt" id="bt">
 <div class="etop"><div class="round"><span class="label">ROUND</span><b id="rnd">1</b><span class="faint" style="font:700 9px var(--body)">Fight ${B.fight} of ${TOTAL_FIGHTS}</span></div>
-<div class="ename"><h2>${esc(e.name)}</h2>${e.passive ? `<div class="passive" id="pas"><b>${esc(e.passive[0])}:</b> ${esc(e.passive[1])}</div>` : ''}</div>
+<div class="ename"><h2>${esc(e.name)}</h2><div class="passive" id="pas"></div></div>
 <div class="intent" id="intent"><div class="label" style="color:var(--blood);font-size:9px">NEXT</div><div class="ib"><span class="ii" id="ii"></span><b id="in"></b></div><span id="it"></span></div></div>
 <div style="position:relative"><div class="cmd" id="cmd">${sigil(B.enemyId, col, { eye: true, glow: e.tier >= 3, lw: 2 })}<div class="eblock" id="eb"></div></div><div class="combo" id="combo" style="opacity:0"><b>0</b><span>THIS TURN</span></div>
-<div class="hpbar"><i id="ehp"></i><b id="ehpt"></b></div><div class="estatus" id="est"></div></div>
+<div class="hpbar ${e.tier >= 3 ? 'boss' : ''}"><i id="ehp"></i>${e.phase2 && e.phase2.at > 0 ? `<u style="left:${e.phase2.at * 100}%"></u>` : ''}<b id="ehpt"></b></div><div class="estatus" id="est"></div></div>
 <div class="board">
 <div class="lane"><span></span><div class="slot enemy" id="slot-enemy"><span class="empty">its minion</span></div><span></span></div>
 <div class="divider"></div>
@@ -323,13 +326,14 @@ ${B.usesAsh ? `<div><div class="pips" id="pips"></div><button class="side-btn" i
   $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Sorted, not in draw order');
   $('#pu').onclick = () => showDeck(B.discard, 'Used Pile');
   s.addEventListener('click', e => { if (!e.target.closest('.card') && view.sel != null) { view.sel = null; renderHand(B.snapshot()); } });
-  const enemyInfo = () => { const [t, d] = B.intentText(); toast(`${e.name} · ${B.enemyHP}/${B.enemyMaxHP} HP${e.passive ? ` · ${e.passive[0]}: ${e.passive[1]}` : ''} · Next: ${t}. ${d}.`, COL.blood); };
+  const enemyInfo = () => { const [t, d] = B.intentText(); toast(`${e.name} · ${B.enemyHP}/${B.enemyMaxHP} HP · ${B.passives.map(p => `${p[0]}: ${p[1]}`).join(' · ')}${e.phase2 && !B.inPhase2 ? ` · Phase 2 ${e.phase2.at ? 'at half HP' : 'when it dies'}` : ''} · Next: ${t}. ${d}.`, COL.blood); };
   $('#cmd').onclick = enemyInfo; $('#intent').onclick = enemyInfo; if ($('#pas')) $('#pas').onclick = enemyInfo;
   $('#slot-player').onclick = ev => { ev.stopPropagation(); const a = B.allies.player; if (a && a.cardID) preview(a.cardID, a.lvl, `In play: ${a.power} attack, ${Math.max(0, a.health)} health`); };
   $('#bt').addEventListener('pointerdown', () => { if (view.busy) view.fast = true; });
   render(B.snapshot());
   B.start();
-  play(B.takeEvents());
+  if (e.tier >= 3) { Sound.play('burn'); banner(`${e.tier === 4 ? 'FINAL BOSS' : 'BOSS'} · ${e.name}`, COL.blood, .6, 1300); buzz(60); }
+  setTimeout(() => play(B.takeEvents()), e.tier >= 3 ? 900 : 0);
 }
 
 function allyHTML(a) {
@@ -340,11 +344,19 @@ function allyHTML(a) {
 }
 function render(sn) {
   $('#rnd').textContent = sn.round || 1;
-  const ii = sn.intentInfo, ICONS = { attack: ['sword', COL.blood], lunge: ['lunge', COL.blood], block: ['shield', COL.frost], heal: ['heart', COL.heal], enrage: ['up', COL.blood], wither: ['down', COL.vow], shatter: ['crack', COL.gold], summon: ['plus', COL.blood], countered: ['none', COL.ash] };
+  $('#pas').innerHTML = (sn.passives || []).map((p, i) => `<div class="${i ? 'p2' : ''}"><b>${esc(p[0])}:</b> ${esc(p[1])}</div>`).join('');
+  const ii = sn.intentInfo, ICONS = { channel: ['charge', COL.gold], stagger: ['none', COL.gold], attack: ['sword', COL.blood], lunge: ['lunge', COL.blood], block: ['shield', COL.frost], heal: ['heart', COL.heal], enrage: ['up', COL.blood], wither: ['down', COL.vow], shatter: ['crack', COL.gold], summon: ['plus', COL.blood], countered: ['none', COL.ash] };
   if (ii) { const [ic, cc] = ICONS[ii.kind] || ['none', COL.ash]; $('#ii').innerHTML = ICON[ic](cc); $('#in').textContent = ii.num; $('#in').style.color = cc; }
-  const LBL = { attack: 'Attack', lunge: 'Lunge', block: 'Block', heal: 'Heal', enrage: 'Enrage', wither: 'Wither', shatter: 'Shatter', summon: 'Summon', countered: 'Countered' };
+  const LBL = { channel: 'Charging', stagger: 'Staggered', attack: 'Attack', lunge: 'Lunge', block: 'Block', heal: 'Heal', enrage: 'Enrage', wither: 'Wither', shatter: 'Shatter', summon: 'Summon', countered: 'Countered' };
   const isSpell = ii && !['attack', 'lunge', 'countered'].includes(ii.kind);
-  $('#it').innerHTML = ii ? `<b>${LBL[ii.kind] || ''}</b>${isSpell ? ' <i class="sp">SPELL</i>' : ''} ${esc(sn.intent[1].replace(/ \(−\d+\)$/, ''))}` : '';
+  $('#intent').classList.toggle('charging', !!ii && ii.kind === 'channel');
+  if (ii && ii.kind === 'channel') {
+    $('#it').innerHTML = `<b>${esc(ii.name)}</b> in ${ii.num} · ${esc(sn.intent[1].split('.')[0].replace('Then hits for ', '').trim())} dmg
+<span class="brk"><i style="width:${100 * ii.progress / ii.brk}%"></i><em>Break ${ii.progress}/${ii.brk}</em></span>`;
+  } else {
+    const sig = sn.intent[1] === 'Its signature attack';
+    $('#it').innerHTML = ii ? `<b>${sig ? esc(sn.intent[0].replace(/\s*[\d×]+$/, '')) : LBL[ii.kind] || ''}</b>${isSpell && ii.kind !== 'stagger' ? ' <i class="sp">SPELL</i>' : ''} ${sig ? '' : esc(sn.intent[1].replace(/ \(−\d+\)$/, ''))}` : '';
+  }
   $('#ehp').style.width = Math.max(0, Math.min(100, 100 * sn.enemyHP / sn.enemyMaxHP)) + '%';
   $('#ehpt').textContent = `${Math.max(0, sn.enemyHP)} / ${sn.enemyMaxHP}`;
   const cb = $('#combo'), td = sn.turnDamage || 0;
@@ -395,10 +407,10 @@ function render(sn) {
 }
 function renderHand(sn) {
   const h = $('#hand'); if (!h) return;
-  const n = sn.hand.length, cw = h.querySelector('.card')?.offsetWidth || Math.min(76, (innerWidth - 18) / 5.15);
-  const avail = Math.min(innerWidth, 520) - 20;
-  const ov = n > 1 ? Math.min(4, (avail - n * cw) / (n - 1)) : 0;
-  h.style.setProperty('--ov', ov + 'px');
+  // Cards never overlap: if they don't fit, the hand scrolls sideways (keeps its scroll position).
+  const keepScroll = h.scrollLeft;
+  h.style.setProperty('--ov', '6px');
+  requestAnimationFrame(() => { h.scrollLeft = keepScroll; h.classList.toggle('scrolls', h.scrollWidth > h.clientWidth + 2); });
   h.innerHTML = sn.hand.map(c => {
     const playable = !view.busy && B.outcome === 'ongoing' && card(c.id).cost <= sn.energy;
     const cls = [view.sel === c.uid ? 'sel' : '', playable ? '' : 'off', view.known.has(c.uid) ? '' : 'new'].join(' ');
@@ -473,10 +485,12 @@ async function play(events) {
       case 'block': if (ev.value > 0) Sound.play('shield'); break;
       case 'ash': Sound.play('ash'); break;
       case 'allyIn': Sound.play('summon'); break;
-      case 'enemyActs': anim($('#cmd'), 'pop'); anim($('#intent'), 'pop'); if (!view.fast) banner(ev.text, COL.blood, .3, 560); Sound.play('enemy'); break;
+      case 'enemyActs': if (ev.sig) { flash(COL.blood, .3); anim($('#bt'), 'quake'); buzz(80); } anim($('#cmd'), 'pop'); anim($('#intent'), 'pop'); if (!view.fast) banner(ev.text, COL.blood, .3, 560); Sound.play('enemy'); break;
       case 'burn': flash(COL.ember, .35); anim($('#bt'), 'quake'); banner(`BURN!  ${ev.amount}`, COL.ember, .55, 700); Sound.play('burn'); break;
       case 'info': if (!view.fast) banner(ev.text, COL.paper, .45, 520); break;
       case 'respond': view.fast = false; banner('Respond?', COL.frost, .5, 650); Sound.play('card'); break;
+      case 'phase': flash(COL.blood, .35); anim($('#bt'), 'quake'); anim($('#cmd'), 'pop'); banner(`PHASE 2 · ${ev.name}`, COL.blood, .6, 1200); toast(ev.text, COL.vow); buzz(90); Sound.play('burn'); await sleep(view.fast ? 80 : 700); break;
+      case 'broken': flash(COL.gold, .35); anim($('#bt'), 'quake'); banner(`BROKEN! ${ev.name} fails`, COL.gold, .6, 900); buzz(70); Sound.play('shield'); break;
       case 'countered': anim($('#intent'), 'shake'); banner('COUNTERED!', COL.frost, .55, 650); flash(COL.frost, .25); buzz(35); Sound.play('shield'); break;
       case 'artifacts': Sound.play('shield'); break;
     }
@@ -609,7 +623,7 @@ function showHowTo(thenPath) {
     ['Goal', 'Defeat 8 enemies in a row. You heal fully between fights.'],
     ['Classes', [['Pyromancer', 'Ash power: creature deaths and Stoke fill Ash; Burn for big damage.'],
                  ['Arcanist', 'No power. Its starting spells have Flash, so it plays on the enemy’s turn and counters its moves.']]],
-    ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it. Hold any card to read it full size.'],
+    ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it. Swipe your hand if it doesn’t fit. Hold any card to read it full size.'],
     ['Cards', [['Creature', 'Your one fighter. It takes enemy hits first and attacks at the end of your turn. A new creature replaces the old one.'],
                ['Spell', 'A one-time effect.'],
                ['Artifact', 'Stays in play. Max 3; a 4th replaces your oldest.']]],
@@ -617,6 +631,7 @@ function showHowTo(thenPath) {
     ['Pyromancer: Ash and Burn', 'Gain 1 Ash when your creature dies, or Stoke for 2 energy (once per turn). With full Ash, Burn: big damage that ignores Block. Each Burn deals 6 more than the last.'],
     ['The enemy', [['NEXT', 'The box at the top shows its next move.'],
                    ['Passive', 'Every enemy has a trick, shown under its name.'],
+                   ['Bosses', 'Fights 6–8. They change at half HP (phase 2) and charge signature attacks: deal the Break number in one turn to stop it, or counter it.'],
                    ['Lunge', 'Skips your creature and hits you.'],
                    ['Wither', 'Your creature loses attack.'],
                    ['Shatter', 'Destroys your oldest artifact.']]],

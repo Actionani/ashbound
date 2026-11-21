@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Ash">
-<meta name="theme-color" content="#0d0c10"><meta name="ashbound-version" content="b39e36b492">
+<meta name="theme-color" content="#0d0c10"><meta name="ashbound-version" content="bde3230558">
 <title>Ash</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:wght@700&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
@@ -294,6 +294,38 @@ button { font: inherit; color: inherit; }
 .ctag { font: 700 9.5px var(--body); padding: 1px 6px; border-radius: 6px; vertical-align: middle; }
 .ctag.pyro { color: var(--ember); border: 1px solid var(--ember); }
 .ctag.arc { color: var(--frost); border: 1px solid var(--frost); }
+/* v8: readable cards */
+.hand { --cw: min(96px, calc((100vw - 12px) / 4.1)); }
+.card { padding: 3px; }
+.card .nm { font-size: calc(var(--cw) * .14); height: 2.15em; line-height: 1.05; }
+.card .nm.long { font-size: calc(var(--cw) * .118); }
+.card .art { width: 36%; margin: 0; }
+.hand .card .art { width: 30%; }
+.card .ty { font-size: calc(var(--cw) * .078); margin-top: 1px; }
+.card .tx { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; margin-top: 2px;
+  padding: 2px 3px calc(var(--cw) * .05); border-radius: 6px; background: rgba(0,0,0,.28);
+  font: 600 calc(var(--cw) * .128) var(--body); line-height: 1.13; color: var(--paper); }
+.card .tx.s { font-size: calc(var(--cw) * .15); }
+.card .tx.l { font-size: calc(var(--cw) * .112); }
+.card .tx.xl { font-size: calc(var(--cw) * .1); line-height: 1.08; }
+.card.cr .tx { font-size: calc(var(--cw) * .11); padding-bottom: calc(var(--cw) * .27); }
+.card .tx b.n { font-weight: 800; color: #fff; }
+.card .tx b.kw { font-weight: 800; color: var(--c); filter: brightness(1.25); }
+.card .tx b.up { color: var(--gold); }
+/* Bosses */
+.hpbar.boss { border-color: var(--blood); box-shadow: 0 0 10px rgba(224,82,106,.35); }
+.hpbar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--paper); opacity: .8; z-index: 2; text-decoration: none; }
+.passive .p2 { color: var(--blood); } .passive .p2 b { color: var(--blood); }
+.intent.charging { border-color: var(--gold); box-shadow: 0 0 0 1.5px var(--gold), 0 0 16px rgba(232,194,106,.3); }
+.intent .brk { position: relative; display: block; height: 13px; margin-top: 3px; border-radius: 7px; background: var(--panel2); overflow: hidden; border: 1px solid var(--faint); }
+.intent .brk i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold); opacity: .55; transition: width .2s; }
+.intent .brk em { position: relative; font: 800 9px/13px var(--body); font-style: normal; color: var(--paper); }
+.hand { overflow-x: auto; overflow-y: hidden; justify-content: flex-start; padding: 24px 6px 2px; height: calc(var(--cw) * 1.48 + 30px);
+  scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.hand::-webkit-scrollbar { display: none; }
+.hand .card { scroll-snap-align: start; }
+.hand:not(.scrolls) .card:first-child { margin-left: auto; } .hand:not(.scrolls) .card:last-child { margin-right: auto; }
+.hand.scrolls { mask-image: linear-gradient(90deg, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); }
 
 </style></head><body>
 <div id="embers"></div><main id="app"></main>
@@ -354,12 +386,12 @@ const Core = (() => {
   creature('boneWard', 'Bone Ward', 1, 'starter', 0, 5, 'Deathrattle: Gain {4} Block.');
   // Arcanist starter: every spell has Flash.
   spell('quickBolt', 'Quick Bolt', 1, 'starter', 'Flash. Deal {5} damage.', { ...DF, ...ARC });
-  spell('parry', 'Parry', 1, 'starter', 'Flash. Gain {6} Block.', { ...F, ...ARC });
+  spell('parry', 'Parry', 1, 'starter', 'Flash. Gain {7} Block.', { ...F, ...ARC });
   spell('negate', 'Negate', 1, 'starter', 'Flash. Counter an enemy spell.', { counter: 'spell', ...ARC });
   spell('arcBolt', 'Arc Bolt', 2, 'starter', 'Flash. Deal {8} damage.', { ...DF, ...ARC });
   spell('manaBolt', 'Mana Bolt', 2, 'starter', 'Flash. Deal {5} damage, +{3} for each spell you cast this fight.', { ...DF, ...ARC });
   creature('apprentice', 'Apprentice', 1, 'starter', 2, 3, '', ARC);
-  creature('sentry', 'Sentry', 2, 'starter', 3, 4, '', ARC);
+  creature('sentry', 'Sentry', 2, 'starter', 3, 5, '', ARC);
   artifact('manaPrism', 'Mana Prism', 2, 'starter', 'End of turn: If you have unspent energy, draw a card.', 0, ARC);
 
   spell('flameJab', 'Flame Jab', 1, 'embers', 'Deal {3} damage. Draw a card.', D);
@@ -545,7 +577,7 @@ const Core = (() => {
   // ---------- Enemies ----------
   const MINIONS = {
     husk: ['Husk', 2, 2], bonewall: ['Bonewall', 2, 7], wisp: ['Wisp', 3, 2], grub: ['Grub', 3, 4],
-    pyreguard: ['Pyreguard', 6, 10], shade: ['Shade', 5, 8], abbeyGuard: ['Abbey Guard', 4, 12],
+    pyreguard: ['Pyreguard', 6, 10], shade: ['Shade', 5, 8], abbeyGuard: ['Abbey Guard', 4, 12], whelp: ['Ember Whelp', 5, 9],
   };
   const at = (n, hits = 1) => ({ kind: 'attack', amount: n, hits });
   const bl = n => ({ kind: 'block', amount: n });
@@ -555,6 +587,8 @@ const Core = (() => {
   const lu = n => ({ kind: 'lunge', amount: n });
   const wi = n => ({ kind: 'wither', amount: n });
   const sh = () => ({ kind: 'shatter', amount: 0 });
+  // Signature move: charges for `turns` turns, then hits for amount×hits. Deal `brk` damage in one turn to break it.
+  const ch = (name, turns, amount, hits, brk) => ({ kind: 'channel', name, turns, amount, hits, brk });
   const ENEMIES = {
     huskShepherd: { name: 'Husk Shepherd', title: 'Herder of the Hollow', tier: 1, hp: 34, hue: 0.08, passive: ['Herder', 'Its minions have +2 attack.'], trick: 'herder', pattern: [su('husk'), at(3), at(4), en(1)] },
     cinderWraith: { name: 'Cinder Wraith', title: 'Smoke Given Hunger', tier: 1, hp: 30, hue: 0.03, passive: ['Smokeform', 'The first damage it takes each turn is halved.'], trick: 'smoke', pattern: [at(2, 2), bl(5), at(5)] },
@@ -563,12 +597,29 @@ const Core = (() => {
     paleChoir: { name: 'Pale Chorister', title: 'A Hymn Without Throat', tier: 2, hp: 56, hue: 0.5, passive: ['Requiem', 'Heals 5 whenever your creature dies.'], trick: 'requiem', pattern: [su('wisp'), lu(5), at(6), en(2)] },
     hollowMatron: { name: 'Hollow Matron', title: 'Mother of Grubs', tier: 2, hp: 60, hue: 0.3, passive: ['Brood', 'Starts the fight with a Grub.'], trick: 'brood', pattern: [su('grub'), at(6), wi(3), he(8), at(8)] },
     ashenKnight: { name: 'Ashen Knight', title: 'Oathless Blade', tier: 2, hp: 64, hue: 0.0, passive: ['Riposte', 'After your creature attacks, it takes 3 damage.'], trick: 'riposte', pattern: [at(7), sh(), lu(7), at(4, 2), en(2)] },
-    boneOracle: { name: 'Bone Oracle', title: 'Reader of Marrow', tier: 3, hp: 92, hue: 0.85, passive: ['Foresight', 'Your 3rd spell each turn gives it 8 Block.'], trick: 'foresight', pattern: [wi(3), at(8), lu(9), bl(12), at(10)] },
-    ironAbbot: { name: 'The Iron Abbot', title: 'Who Prays With Hammers', tier: 3, hp: 100, hue: 0.12, passive: ['Plated', 'Takes 1 less damage from each hit.'], trick: 'plated', pattern: [bl(12), at(10), sh(), su('abbeyGuard'), wi(4), at(6, 2), en(3)] },
-    wardenOfPyres: { name: 'Warden of Pyres', title: 'Last Keeper of the Flame', tier: 4, hp: 140, hue: 0.06, passive: ['Rebirth', 'The first time it dies, it returns with 40 HP.'], trick: 'rebirth', pattern: [su('pyreguard'), at(10), lu(10), sh(), at(7, 2), wi(3), en(3), at(13)] },
-    silentChoir: { name: 'The Silent Choir', title: 'Many Mouths, No Voice', tier: 4, hp: 120, hue: 0.55, passive: ['Hush', 'Your Burn needs 1 more Ash.'], trick: 'hush', pattern: [at(5, 3), wi(4), su('shade'), lu(11), he(15), at(12), en(3)] },
+    // Bosses (tier 3 elites and tier 4 finals): a second phase and a charged signature move.
+    boneOracle: { name: 'Bone Oracle', title: 'Reader of Marrow', tier: 3, hp: 92, hue: 0.85, passive: ['Foresight', 'Your 3rd spell each turn gives it 8 Block.'], trick: 'foresight',
+      pattern: [wi(3), at(8), ch('Marrow Curse', 2, 18, 1, 14), lu(9), bl(10), at(10)],
+      phase2: { at: 0.5, name: 'Grave Sight', text: 'Your creature loses 1 attack at the start of each turn.', trick: 'gravesight', block: 12,
+                pattern: [ch('Bone Storm', 2, 7, 3, 16), wi(3), lu(10), at(11)] } },
+    ironAbbot: { name: 'The Iron Abbot', title: 'Who Prays With Hammers', tier: 3, hp: 100, hue: 0.12, passive: ['Plated', 'Takes 1 less damage from each hit.'], trick: 'plated',
+      pattern: [bl(12), at(10), su('abbeyGuard'), ch('Judgment', 2, 22, 1, 16), sh(), at(6, 2)],
+      phase2: { at: 0.5, name: 'Zealot', text: 'Its attacks grow by 1 after every action.', trick: 'zealot', block: 15,
+                pattern: [at(11), ch('Final Judgment', 2, 26, 1, 18), bl(10), at(7, 2)] } },
+    wardenOfPyres: { name: 'Warden of Pyres', title: 'Last Keeper of the Flame', tier: 4, hp: 140, hue: 0.06, passive: ['Rebirth', 'The first time it dies, it returns with 40 HP.'], trick: 'rebirth',
+      pattern: [su('pyreguard'), at(10), ch('Pyre Cataclysm', 2, 24, 1, 18), lu(10), sh(), at(7, 2), en(3)],
+      phase2: { at: 0, name: 'Reborn in Flame', text: 'Start of your turn: you take 2 damage.', trick: 'inferno',
+                pattern: [at(8, 2), ch('Sunfall', 2, 30, 1, 22), en(3), lu(12)] } },
+    silentChoir: { name: 'The Silent Choir', title: 'Many Mouths, No Voice', tier: 4, hp: 120, hue: 0.55, passive: ['Hush', 'Pyromancer: Burn needs 1 more Ash.'], trick: 'hush',
+      pattern: [at(5, 3), wi(4), su('shade'), ch('Dirge', 2, 6, 3, 18), he(15), at(12)],
+      phase2: { at: 0.5, name: 'Crescendo', text: 'Its attacks hit one extra time.', trick: 'echo', summon: 'shade',
+                pattern: [at(6, 2), ch('Final Chorus', 2, 8, 3, 22), lu(12), en(2)] } },
+    cinderWyrm: { name: 'Cinder Wyrm', title: 'Hoarder of Embers', tier: 4, hp: 150, hue: 0.02, passive: ['Molten Scales', 'Hits of 4 or less deal half damage.'], trick: 'scales',
+      pattern: [at(9), bl(10), ch('Dragonfire', 3, 32, 1, 24), su('whelp'), at(6, 2), wi(3)],
+      phase2: { at: 0.5, name: 'Take Wing', text: 'Its attacks fly over your creature.', trick: 'wing', block: 12,
+                pattern: [at(10), ch('Ash Storm', 2, 8, 3, 22), lu(13), en(2)] } },
   };
-  const TUNING = { 1: [1.0, 0.9], 2: [1.1, 1.1], 3: [1.15, 1.4], 4: [1.0, 1.5] };
+  const TUNING = { 1: [1.0, 0.9], 2: [1.1, 1.1], 3: [1.3, 1.5], 4: [1.2, 1.65] };
   const enemiesOfTier = t => Object.keys(ENEMIES).filter(k => ENEMIES[k].tier === t);
 
   // ---------- Battle ----------
@@ -598,7 +649,7 @@ const Core = (() => {
       this.weaken = 0; this.exposed = false; this.smothered = false; this.rotDmg = 0; this.scorch = 0;
       this.allies = { player: null, enemy: null };
       this.events = []; this.outcome = 'ongoing';
-      this.trick = this.enemy.trick || null; this.smokeUsed = false; this.reborn = false; this.foresightUsed = false;
+      this.tricks = new Set(this.enemy.trick ? [this.enemy.trick] : []); this.pattern = this.enemy.pattern; this.inPhase2 = false; this.channel = null; this.smokeUsed = false; this.reborn = false; this.foresightUsed = false;
     }
     makeCard(e) { return typeof e === 'string' ? { uid: this.nextID++, id: e, lvl: 0 } : { uid: this.nextID++, id: e.id, lvl: e.lvl || 0 }; }
     // The i-th {number} of a card, artifact or creature, grown by its stars.
@@ -614,13 +665,13 @@ const Core = (() => {
         allies: { player: cp(this.allies.player), enemy: cp(this.allies.enemy) },
         artifacts: this.artifacts.map(a => ({ ...a })), hand: this.hand.map(c => ({ ...c })),
         drawCount: this.drawPile.length, discardCount: this.discard.length, round: this.round,
-        status: this.enemyStatus, intent: this.intentText(), intentInfo: this.intentInfo(),
+        status: this.enemyStatus, intent: this.intentText(), intentInfo: this.intentInfo(), passives: this.passives, inPhase2: this.inPhase2,
       };
     }
     has(id) { return this.artifacts.some(a => a.id === id); }
     count(id) { return this.artifacts.filter(a => a.id === id).length; }
 
-    get ashNeeded() { return (this.aug.has('hotCoals') ? 2 : 3) + (this.trick === 'hush' ? 1 : 0); }
+    get ashNeeded() { return (this.aug.has('hotCoals') ? 2 : 3) + (this.tricks.has('hush') ? 1 : 0); }
     get canBurn() { return this.usesAsh && this.phase === 'main' && this.outcome === 'ongoing' && this.ash >= this.ashNeeded; }
     get burnDamage() { return (12 + this.burnBonus + this.heat + BURN_GROWTH * this.burns) * (this.aug.has('brandOfFury') ? 2 : 1); }
     get stokePrice() { return this.aug.has('ashCrown') ? 1 : STOKE_COST; }
@@ -629,7 +680,7 @@ const Core = (() => {
 
     // Can this counter answer the enemy's current action?
     counterFits(d) {
-      if (!d.counter || !this.intent || this.smothered) return false;
+      if (!d.counter || !this.intent || this.smothered || this.intent.kind === 'stagger') return false;
       const atk = ATTACK_KINDS.includes(this.intent.kind);
       return d.counter === 'any' || (d.counter === 'attack' ? atk : !atk);
     }
@@ -665,7 +716,7 @@ const Core = (() => {
 
     start() {
       if (this.startBlock) this.gainBlock(this.startBlock);
-      if (this.trick === 'brood') this.summonMinion('grub');
+      if (this.tricks.has('brood')) this.summonMinion('grub');
       if (this.aug.has('ironThimble')) this.gainBlock(10);
       this.draw(3 + (this.aug.has('boneDice') ? 2 : 0));
       this.rollIntent(1);
@@ -688,6 +739,8 @@ const Core = (() => {
         if (!this.has('eternalEmber')) this.scorch--;
         this.ev('status');
       }
+      if (this.tricks.has('inferno')) { this.ev('info', { text: 'The flames burn you.' }); this.loseHP(2); if (this.outcome !== 'ongoing') return; }
+      if (this.tricks.has('gravesight') && this.allies.player && this.allies.player.power > 0) { this.allies.player.power--; this.ev('allyChanged', { side: 'player' }); }
       if (this.rotDmg > 0) {
         this.ev('info', { text: `Rot deals ${this.rotDmg}.` });
         this.hitFace('enemy', this.rotDmg, true);
@@ -753,7 +806,7 @@ const Core = (() => {
       } else {
         this.discard.push(c);
         const before = this.spellsThisTurn++; this.spellsCast = (this.spellsCast || 0) + 1;
-        if (this.trick === 'foresight' && this.spellsThisTurn === 3 && !this.foresightUsed && !this.exposed) {
+        if (this.tricks.has('foresight') && this.spellsThisTurn === 3 && !this.foresightUsed && !this.exposed) {
           this.foresightUsed = true; this.enemyBlock += 8;
           this.ev('info', { text: `Foresight: ${this.enemy.name} gains 8 Block.` }); this.ev('block', { side: 'enemy', value: this.enemyBlock });
         }
@@ -814,7 +867,7 @@ const Core = (() => {
           this.ev('allyAttacks', { side: 'player' });
           const pw = cur.power;
           this.hitFront('enemy', pw);
-          if (this.trick === 'riposte' && this.allies.player === cur && this.outcome === 'ongoing') { this.ev('info', { text: 'Riposte!' }); this.hitAlly('player', 3); }
+          if (this.tricks.has('riposte') && this.allies.player === cur && this.outcome === 'ongoing') { this.ev('info', { text: 'Riposte!' }); this.hitAlly('player', 3); }
           if (cur.cardID === 'scorchImp') this.applyScorch(this.N(cur));
           if (cur.cardID === 'vampire' || this.has('thirstingBlade')) this.healPlayer(pw);
         }
@@ -848,7 +901,7 @@ const Core = (() => {
       this.enemyPhase();
     }
     enemyPhase() {
-      if (this.enemyBlock !== 0 && this.trick !== 'stoneskin') { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
+      if (this.enemyBlock !== 0 && !this.tricks.has('stoneskin')) { this.enemyBlock = 0; this.ev('block', { side: 'enemy', value: 0 }); }
       if (this.smothered) {
         this.smothered = false;
         this.ev('enemyActs', { text: `${this.enemy.name} is countered.` });
@@ -981,6 +1034,7 @@ const Core = (() => {
     counter() {
       if (this.smothered) return;
       this.smothered = true;
+      if (this.intent && this.intent.kind === 'channel') this.channel = null;
       this.ev('countered');
       this.ev('status');
       if (this.aug.has('mirrorMind')) this.draw(1);
@@ -1029,7 +1083,7 @@ const Core = (() => {
     }
     summonMinion(m) {
       const [name, bp, bh] = MINIONS[m];
-      const p = bp + Math.floor((this.round - 1) / 3) + (this.trick === 'herder' ? 2 : 0), h = bh + Math.floor((this.round - 1) / 2);
+      const p = bp + Math.floor((this.round - 1) / 3) + (this.tricks.has('herder') ? 2 : 0), h = bh + Math.floor((this.round - 1) / 2);
       this.allies.enemy = { id: this.nextID++, name, side: 'enemy', power: p, health: h, maxHealth: h, cardID: null, minion: m, fresh: true };
       this.ev('allyIn', { side: 'enemy' });
     }
@@ -1041,7 +1095,7 @@ const Core = (() => {
         if (over > 0) this.hitFace(side, over);
       } else this.hitFace(side, amount);
     }
-    tally(side, n) { if (side === 'enemy' && n > 0) { this.turnDamage += n; this.bestTurn = Math.max(this.bestTurn, this.turnDamage); } }
+    tally(side, n) { if (side === 'enemy' && n > 0) { this.turnDamage += n; this.bestTurn = Math.max(this.bestTurn, this.turnDamage); this.checkBreak(); } }
     hitAlly(side, amount) {
       const a = this.allies[side];
       if (!a || amount <= 0) return 0;
@@ -1087,7 +1141,7 @@ const Core = (() => {
         if (side === 'player') this.hp -= a; else this.enemyHP -= a;
         this.tally(side, a);
         this.ev('faceHit', { side, amount: a });
-        if (side === 'player' && this.trick === 'leech' && this.enemyHP > 0) this.healEnemy(3);
+        if (side === 'player' && this.tricks.has('leech') && this.enemyHP > 0) this.healEnemy(3);
       }
       if (side === 'player' && this.hp <= 0 && this.aug.has('phoenixFeather') && !this.featherUsed) {
         this.featherUsed = true;
@@ -1100,8 +1154,9 @@ const Core = (() => {
     }
     enemyReduce(a) {
       if (this.frailty && a > 0) a += this.frailty;
-      if (this.trick === 'plated') a = Math.max(0, a - 1);
-      if (this.trick === 'smoke' && !this.smokeUsed && a > 0) { this.smokeUsed = true; a = Math.ceil(a / 2); }
+      if (this.tricks.has('plated')) a = Math.max(0, a - 1);
+      if (this.tricks.has('scales') && a > 0 && a <= 4) a = Math.ceil(a / 2);
+      if (this.tricks.has('smoke') && !this.smokeUsed && a > 0) { this.smokeUsed = true; a = Math.ceil(a / 2); }
       return a;
     }
     healEnemy(n) {
@@ -1115,7 +1170,7 @@ const Core = (() => {
       this.ev('allyDied', { side });
       if (side !== 'player') return;
       this.gainAsh(1);
-      if (this.trick === 'requiem') this.healEnemy(5);
+      if (this.tricks.has('requiem')) this.healEnemy(5);
       if (this.aug.has('mourningVeil')) this.gainBlock(5);
       for (const art of this.artifacts.slice()) {
         if (this.outcome !== 'ongoing') break;
@@ -1154,9 +1209,17 @@ const Core = (() => {
 
     ramp(r, k = 1) { return Math.floor((r - 1) * TUNING[this.enemy.tier][1] * k); }
     rollIntent(r) {
-      const t = this.enemy.pattern[this.patternIndex % this.enemy.pattern.length];
+      if (this.channel) {
+        const c = this.channel;
+        if (c.left > 0) { this.intent = { kind: 'channel', name: c.name, left: c.left, amount: c.amount, hits: c.hits, brk: c.brk }; return; }
+        this.intent = { kind: 'attack', amount: c.amount, hits: c.hits, sig: c.name }; this.channel = null; return;
+      }
+      const t = this.pattern[this.patternIndex % this.pattern.length];
       this.patternIndex++;
       switch (t.kind) {
+        case 'channel':
+          this.channel = { name: t.name, left: t.turns, amount: t.amount + this.ramp(r, t.hits > 1 ? 0.5 : 1), hits: t.hits, brk: t.brk };
+          return this.rollIntent(r);
         case 'attack': this.intent = { kind: 'attack', amount: t.amount + (t.hits > 1 ? this.ramp(r, 0.5) : this.ramp(r)), hits: t.hits || 1 }; break;
         case 'lunge': this.intent = { kind: 'lunge', amount: t.amount + this.ramp(r, 0.8), hits: 1 }; break;
         case 'block': case 'heal': this.intent = { kind: t.kind, amount: t.amount + this.ramp(r, 1.5), hits: 1 }; break;
@@ -1171,10 +1234,17 @@ const Core = (() => {
     execute(i) {
       const n = this.enemy.name;
       switch (i.kind) {
-        case 'attack':
-          this.ev('enemyActs', { text: `${n} attacks!` });
-          for (let k = 0; k < i.hits && this.outcome === 'ongoing'; k++) this.enemyAttack(i.amount + this.enrage, false);
+        case 'attack': {
+          this.ev('enemyActs', { text: i.sig ? `${n} unleashes ${i.sig}!` : `${n} attacks!`, sig: !!i.sig });
+          const hits = i.hits + (this.tricks.has('echo') ? 1 : 0);
+          for (let k = 0; k < hits && this.outcome === 'ongoing'; k++) this.enemyAttack(i.amount + this.enrage, this.tricks.has('wing'));
           break;
+        }
+        case 'channel':
+          if (this.channel) this.channel.left--;
+          this.ev('enemyActs', { text: `${n} gathers power: ${i.name}…` });
+          break;
+        case 'stagger': this.ev('enemyActs', { text: `${n} is staggered.` }); break;
         case 'lunge':
           this.ev('enemyActs', { text: `${n} lunges past your creature!` });
           this.enemyAttack(i.amount + this.enrage, true);
@@ -1202,11 +1272,34 @@ const Core = (() => {
           if (!this.allies.enemy && i.minion) { this.ev('enemyActs', { text: `${n} summons a ${MINIONS[i.minion][0]}.` }); this.summonMinion(i.minion); }
           break;
       }
+      if (this.tricks.has('zealot') && this.outcome === 'ongoing') { this.enrage++; this.ev('status'); }
     }
+    // Damage dealt this turn can break a charging signature move.
+    checkBreak() {
+      const i = this.intent;
+      if (!i || i.kind !== 'channel' || this.turnDamage < i.brk || this.outcome !== 'ongoing') return;
+      this.channel = null; this.smothered = false;
+      this.intent = { kind: 'stagger', amount: 0, hits: 1 };
+      this.ev('broken', { name: i.name }); this.ev('status');
+    }
+    enterPhase2() {
+      const p = this.enemy.phase2;
+      if (!p || this.inPhase2) return;
+      this.inPhase2 = true;
+      if (p.trick) this.tricks.add(p.trick);
+      this.pattern = p.pattern; this.patternIndex = 0;
+      this.ev('phase', { name: p.name, text: p.text });
+      if (p.block) { this.enemyBlock += p.block; this.ev('block', { side: 'enemy', value: this.enemyBlock }); }
+      if (p.summon && !this.allies.enemy) this.summonMinion(p.summon);
+      this.ev('status');
+    }
+    get passives() { const a = [this.enemy.passive]; if (this.inPhase2) a.push([this.enemy.phase2.name, this.enemy.phase2.text]); return a.filter(Boolean); }
     intentInfo() {
       const i = this.intent;
       if (!i) return null;
       if (this.smothered) return { kind: 'countered', num: '' };
+      if (i.kind === 'channel') return { kind: 'channel', num: `${i.left}`, name: i.name, brk: i.brk, progress: Math.min(this.turnDamage, i.brk) };
+      if (i.kind === 'stagger') return { kind: 'stagger', num: '' };
       const atk = Math.max(0, i.amount + this.enrage - this.weaken);
       const num = i.kind === 'attack' ? (i.hits > 1 ? `${atk}×${i.hits}` : `${atk}`) : i.kind === 'lunge' ? `${atk}` : ['block', 'heal'].includes(i.kind) ? `${i.amount}` : ['enrage', 'wither'].includes(i.kind) ? `${i.amount}` : '';
       return { kind: i.kind, num };
@@ -1214,6 +1307,9 @@ const Core = (() => {
     intentText() {
       const i = this.intent;
       if (!i) return ['', ''];
+      if (!this.smothered && i.kind === 'channel') return [`${i.name} in ${i.left}`, `Then hits for ${i.amount}${i.hits > 1 ? '×' + i.hits : ''}. Deal ${i.brk} damage in one turn to break it`];
+      if (!this.smothered && i.kind === 'stagger') return ['Staggered', 'Skips its next action'];
+      if (!this.smothered && i.sig) return [`${i.sig} ${i.amount + this.enrage}${i.hits > 1 ? '×' + i.hits : ''}`, 'Its signature attack'];
       if (this.smothered) return ['Countered', 'Skips its next action'];
       const w = this.weaken > 0 ? ` (−${this.weaken})` : '';
       switch (i.kind) {
@@ -1226,7 +1322,7 @@ const Core = (() => {
         case 'shatter': return ['Shatter', this.artifacts.length ? 'Destroys your oldest artifact' : 'You have no artifact'];
         case 'summon': {
           const [name, bp, bh] = MINIONS[i.minion];
-          return ['Summon', `Summons a ${name} ${bp + Math.floor((this.round - 1) / 3) + (this.trick === 'herder' ? 2 : 0)}/${bh + Math.floor((this.round - 1) / 2)}`];
+          return ['Summon', `Summons a ${name} ${bp + Math.floor((this.round - 1) / 3) + (this.tricks.has('herder') ? 2 : 0)}/${bh + Math.floor((this.round - 1) / 2)}`];
         }
       }
       return ['', ''];
@@ -1244,11 +1340,14 @@ const Core = (() => {
     }
     checkOutcome() {
       if (this.outcome !== 'ongoing') return;
-      if (this.enemyHP <= 0 && this.trick === 'rebirth' && !this.reborn) {
+      if (this.enemyHP <= 0 && this.tricks.has('rebirth') && !this.reborn) {
         this.reborn = true; this.enemyHP = 40; this.scorch = 0; this.rotDmg = 0;
         this.ev('info', { text: `${this.enemy.name} rises again!` }); this.ev('healed', { side: 'enemy', amount: 40 }); this.ev('status');
+        if (this.enemy.phase2 && this.enemy.phase2.at === 0) this.enterPhase2();
         return;
       }
+      const p2 = this.enemy.phase2;
+      if (p2 && p2.at > 0 && !this.inPhase2 && this.enemyHP > 0 && this.enemyHP <= this.enemyMaxHP * p2.at) this.enterPhase2();
       if (this.enemyHP <= 0) { this.enemyHP = 0; this.outcome = 'won'; }
       else if (this.hp <= 0) { this.hp = 0; this.outcome = 'lost'; }
     }
@@ -1263,7 +1362,7 @@ const Core = (() => {
     ['vitality', 'Vitality', 'Combat', null, '+2 max HP per level.', [40, 70, 100, 140, 180]],
     ['guard', 'Guarded Start', 'Combat', null, 'Start each fight with +2 Block per level.', [30, 60, 90, 120, 150]],
     ['burn', 'Hotter Burn', 'Hero Power', 'pyro', 'Burn deals +1 damage per level.', [50, 80, 110, 140, 170]],
-    ['focus', 'Focus', 'Hero Power', 'arcanist', 'Flash damage spells deal +1 damage per level.', [50, 80, 110, 140, 170]],
+    ['focus', 'Focus', 'Hero Power', 'arcanist', 'Flash damage spells deal +2 damage per level.', [50, 80, 110, 140, 170]],
     ['themeGiants', 'Giants', 'Archetypes', null, 'Adds the Giants theme: big creatures and buffs.', [50]],
     ['themePyre', 'Pyre', 'Archetypes', 'pyro', 'Adds the Pyre theme: more Ash and Burn.', [90]],
     ['forge', 'Forged Start', 'Rewards', null, 'Each run, 1 random starting card per level begins with ★.', [60, 90, 120, 150, 180]],
@@ -1282,7 +1381,7 @@ const Core = (() => {
     fix(m) {
       m.levels = m.levels || {};
       if (!m.migrated) {
-        for (const u of m.unlocked || []) { const k = OLD_UNLOCKS[u]; if (k) m.levels[k] = Math.min(MAX_LEVEL, (m.levels[k] || 0) + (k === 'burn' || k === 'focus' ? 2 : 1)); }
+        for (const u of m.unlocked || []) { const k = OLD_UNLOCKS[u]; if (k) m.levels[k] = Math.min(MAX_LEVEL, (m.levels[k] || 0) + (k === 'burn' ? 2 : 1)); }
         m.migrated = true;
       }
       return m;
@@ -1292,7 +1391,7 @@ const Core = (() => {
     startBlock: m => 2 * Meta.lvl(m, 'guard'),
     burnBonus: m => Meta.lvl(m, 'burn'),
     // Burn bonus for the Pyromancer, Flash damage bonus for the Arcanist.
-    classBonus: (m, cls) => cls === 'arcanist' ? Meta.lvl(m, 'focus') : Meta.burnBonus(m),
+    classBonus: (m, cls) => cls === 'arcanist' ? 2 * Meta.lvl(m, 'focus') : Meta.burnBonus(m),
     nextCost: (m, u) => Meta.lvl(m, u.id) < u.max ? u.costs[Meta.lvl(m, u.id)] : null,
     themes: (m, cls = 'pyro') => {
       const t = ['embers', 'bulwark', 'swarm', 'artifice', 'scorch', 'spellbound', 'bloodrite', 'echoes', 'hex'];
@@ -1456,6 +1555,7 @@ function sigil(key, color, o = {}) {
 }
 const ICON = {
   heart: c => `<svg viewBox="-10 -10 20 20"><path d="M0,9C14,0 7,-12 0,-5C-7,-12 -14,0 0,9Z" fill="${c}"/></svg>`,
+  charge: c => `<svg viewBox="-12 -12 24 24"><circle r="9" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="4 3"/><path d="M-2,-6L3,-1H-1L2,6L-4,0H0Z" fill="${c}"/></svg>`,
   shield: c => `<svg viewBox="-10 -10 20 20"><path d="M0,-9L8,-6Q8,4 0,9Q-8,4 -8,-6Z" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="1.5"/></svg>`,
   flame: c => `<svg viewBox="-10 -10 20 20"><path d="M0,-10C11,0 8,9 0,9C-8,9 -11,0 0,-10Z" fill="${c}"/></svg>`,
   ash: c => `<svg viewBox="-10 -10 20 20" fill="${c}">${[[-5, 5], [0, 5], [5, 5], [-2.5, 0], [2.5, 0], [0, -5]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2"/>`).join('')}</svg>`,
@@ -1597,11 +1697,13 @@ function on(root, sel, fn) { root.querySelectorAll(sel).forEach(el => el.addEven
 function cardHTML(id, o = {}) {
   const d = card(id), c = typeCol(d.type), lvl = o.lvl || 0;
   const ty = d.theme === 'starter' ? d.type : `${d.type} · ${THEMES[d.theme][0]}`;
-  const tx = textParts(id, lvl).map(p => p.t != null ? esc(p.t) : p.up ? `<b class="up">${p.n}</b>` : p.n).join('');
+  const KW = /\b(Flash|Deathrattle|Lifesteal|Battlecry|Sacrifice|Counter|Scorch|Block|Burn|Ash)\b/g;
+  const tx = textParts(id, lvl).map(p => p.t != null ? esc(p.t).replace(KW, '<b class="kw">$1</b>') : `<b class="${p.up ? 'up' : 'n'}">${p.n}</b>`).join('');
+  const len = cardText(id, lvl).length, tcls = len <= 22 ? 's' : len <= 48 ? '' : len <= 70 ? 'l' : 'xl';
   const [pw, hp] = stats(id, lvl), up = lvl > 0 ? ' up' : '';
   return `<div class="card ${d.type === 'creature' ? 'cr' : ''} ${lvl ? 'lv' : ''} ${o.cls || ''}" style="--c:${c}" ${o.uid != null ? `data-uid="${o.uid}"` : ''} ${o.attr || ''}>
-<div class="cost">${d.cost}</div><div class="nm">${esc(d.name)}</div>${sigil(id, c, { cls: 'art', lw: 2.6 })}
-<div class="ty">${lvl ? `<span class="stars">${lvl <= 3 ? '★'.repeat(lvl) : '★' + lvl}</span>` : ''}${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx">${tx}</div>` : ''}
+<div class="cost">${d.cost}</div><div class="nm ${d.name.length > 12 ? 'long' : ''}">${esc(d.name)}</div>${sigil(id, c, { cls: 'art', lw: 2.6 })}
+<div class="ty">${lvl ? `<span class="stars">${lvl <= 3 ? '★'.repeat(lvl) : '★' + lvl}</span>` : ''}${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx ${tcls}"><span>${tx}</span></div>` : ''}
 ${d.type === 'creature' ? `<div class="p${up}">${pw}</div><div class="h${up}">${hp}</div>` : ''}</div>`;
 }
 const KEYWORDS = Object.fromEntries(GLOSSARY.map(([k, v]) => [k.replace(/ ★$/, ''), v]));
@@ -1717,10 +1819,10 @@ function startBattle() {
   const e = B.enemy, col = `hsl(${Math.round(e.hue * 360)} 70% 68%)`;
   const s = screen(`<div class="bt" id="bt">
 <div class="etop"><div class="round"><span class="label">ROUND</span><b id="rnd">1</b><span class="faint" style="font:700 9px var(--body)">Fight ${B.fight} of ${TOTAL_FIGHTS}</span></div>
-<div class="ename"><h2>${esc(e.name)}</h2>${e.passive ? `<div class="passive" id="pas"><b>${esc(e.passive[0])}:</b> ${esc(e.passive[1])}</div>` : ''}</div>
+<div class="ename"><h2>${esc(e.name)}</h2><div class="passive" id="pas"></div></div>
 <div class="intent" id="intent"><div class="label" style="color:var(--blood);font-size:9px">NEXT</div><div class="ib"><span class="ii" id="ii"></span><b id="in"></b></div><span id="it"></span></div></div>
 <div style="position:relative"><div class="cmd" id="cmd">${sigil(B.enemyId, col, { eye: true, glow: e.tier >= 3, lw: 2 })}<div class="eblock" id="eb"></div></div><div class="combo" id="combo" style="opacity:0"><b>0</b><span>THIS TURN</span></div>
-<div class="hpbar"><i id="ehp"></i><b id="ehpt"></b></div><div class="estatus" id="est"></div></div>
+<div class="hpbar ${e.tier >= 3 ? 'boss' : ''}"><i id="ehp"></i>${e.phase2 && e.phase2.at > 0 ? `<u style="left:${e.phase2.at * 100}%"></u>` : ''}<b id="ehpt"></b></div><div class="estatus" id="est"></div></div>
 <div class="board">
 <div class="lane"><span></span><div class="slot enemy" id="slot-enemy"><span class="empty">its minion</span></div><span></span></div>
 <div class="divider"></div>
@@ -1739,13 +1841,14 @@ ${B.usesAsh ? `<div><div class="pips" id="pips"></div><button class="side-btn" i
   $('#pd').onclick = () => showDeck(B.drawPile, 'Draw Pile', 'Sorted, not in draw order');
   $('#pu').onclick = () => showDeck(B.discard, 'Used Pile');
   s.addEventListener('click', e => { if (!e.target.closest('.card') && view.sel != null) { view.sel = null; renderHand(B.snapshot()); } });
-  const enemyInfo = () => { const [t, d] = B.intentText(); toast(`${e.name} · ${B.enemyHP}/${B.enemyMaxHP} HP${e.passive ? ` · ${e.passive[0]}: ${e.passive[1]}` : ''} · Next: ${t}. ${d}.`, COL.blood); };
+  const enemyInfo = () => { const [t, d] = B.intentText(); toast(`${e.name} · ${B.enemyHP}/${B.enemyMaxHP} HP · ${B.passives.map(p => `${p[0]}: ${p[1]}`).join(' · ')}${e.phase2 && !B.inPhase2 ? ` · Phase 2 ${e.phase2.at ? 'at half HP' : 'when it dies'}` : ''} · Next: ${t}. ${d}.`, COL.blood); };
   $('#cmd').onclick = enemyInfo; $('#intent').onclick = enemyInfo; if ($('#pas')) $('#pas').onclick = enemyInfo;
   $('#slot-player').onclick = ev => { ev.stopPropagation(); const a = B.allies.player; if (a && a.cardID) preview(a.cardID, a.lvl, `In play: ${a.power} attack, ${Math.max(0, a.health)} health`); };
   $('#bt').addEventListener('pointerdown', () => { if (view.busy) view.fast = true; });
   render(B.snapshot());
   B.start();
-  play(B.takeEvents());
+  if (e.tier >= 3) { Sound.play('burn'); banner(`${e.tier === 4 ? 'FINAL BOSS' : 'BOSS'} · ${e.name}`, COL.blood, .6, 1300); buzz(60); }
+  setTimeout(() => play(B.takeEvents()), e.tier >= 3 ? 900 : 0);
 }
 
 function allyHTML(a) {
@@ -1756,11 +1859,19 @@ function allyHTML(a) {
 }
 function render(sn) {
   $('#rnd').textContent = sn.round || 1;
-  const ii = sn.intentInfo, ICONS = { attack: ['sword', COL.blood], lunge: ['lunge', COL.blood], block: ['shield', COL.frost], heal: ['heart', COL.heal], enrage: ['up', COL.blood], wither: ['down', COL.vow], shatter: ['crack', COL.gold], summon: ['plus', COL.blood], countered: ['none', COL.ash] };
+  $('#pas').innerHTML = (sn.passives || []).map((p, i) => `<div class="${i ? 'p2' : ''}"><b>${esc(p[0])}:</b> ${esc(p[1])}</div>`).join('');
+  const ii = sn.intentInfo, ICONS = { channel: ['charge', COL.gold], stagger: ['none', COL.gold], attack: ['sword', COL.blood], lunge: ['lunge', COL.blood], block: ['shield', COL.frost], heal: ['heart', COL.heal], enrage: ['up', COL.blood], wither: ['down', COL.vow], shatter: ['crack', COL.gold], summon: ['plus', COL.blood], countered: ['none', COL.ash] };
   if (ii) { const [ic, cc] = ICONS[ii.kind] || ['none', COL.ash]; $('#ii').innerHTML = ICON[ic](cc); $('#in').textContent = ii.num; $('#in').style.color = cc; }
-  const LBL = { attack: 'Attack', lunge: 'Lunge', block: 'Block', heal: 'Heal', enrage: 'Enrage', wither: 'Wither', shatter: 'Shatter', summon: 'Summon', countered: 'Countered' };
+  const LBL = { channel: 'Charging', stagger: 'Staggered', attack: 'Attack', lunge: 'Lunge', block: 'Block', heal: 'Heal', enrage: 'Enrage', wither: 'Wither', shatter: 'Shatter', summon: 'Summon', countered: 'Countered' };
   const isSpell = ii && !['attack', 'lunge', 'countered'].includes(ii.kind);
-  $('#it').innerHTML = ii ? `<b>${LBL[ii.kind] || ''}</b>${isSpell ? ' <i class="sp">SPELL</i>' : ''} ${esc(sn.intent[1].replace(/ \(−\d+\)$/, ''))}` : '';
+  $('#intent').classList.toggle('charging', !!ii && ii.kind === 'channel');
+  if (ii && ii.kind === 'channel') {
+    $('#it').innerHTML = `<b>${esc(ii.name)}</b> in ${ii.num} · ${esc(sn.intent[1].split('.')[0].replace('Then hits for ', '').trim())} dmg
+<span class="brk"><i style="width:${100 * ii.progress / ii.brk}%"></i><em>Break ${ii.progress}/${ii.brk}</em></span>`;
+  } else {
+    const sig = sn.intent[1] === 'Its signature attack';
+    $('#it').innerHTML = ii ? `<b>${sig ? esc(sn.intent[0].replace(/\s*[\d×]+$/, '')) : LBL[ii.kind] || ''}</b>${isSpell && ii.kind !== 'stagger' ? ' <i class="sp">SPELL</i>' : ''} ${sig ? '' : esc(sn.intent[1].replace(/ \(−\d+\)$/, ''))}` : '';
+  }
   $('#ehp').style.width = Math.max(0, Math.min(100, 100 * sn.enemyHP / sn.enemyMaxHP)) + '%';
   $('#ehpt').textContent = `${Math.max(0, sn.enemyHP)} / ${sn.enemyMaxHP}`;
   const cb = $('#combo'), td = sn.turnDamage || 0;
@@ -1811,10 +1922,10 @@ function render(sn) {
 }
 function renderHand(sn) {
   const h = $('#hand'); if (!h) return;
-  const n = sn.hand.length, cw = h.querySelector('.card')?.offsetWidth || Math.min(76, (innerWidth - 18) / 5.15);
-  const avail = Math.min(innerWidth, 520) - 20;
-  const ov = n > 1 ? Math.min(4, (avail - n * cw) / (n - 1)) : 0;
-  h.style.setProperty('--ov', ov + 'px');
+  // Cards never overlap: if they don't fit, the hand scrolls sideways (keeps its scroll position).
+  const keepScroll = h.scrollLeft;
+  h.style.setProperty('--ov', '6px');
+  requestAnimationFrame(() => { h.scrollLeft = keepScroll; h.classList.toggle('scrolls', h.scrollWidth > h.clientWidth + 2); });
   h.innerHTML = sn.hand.map(c => {
     const playable = !view.busy && B.outcome === 'ongoing' && card(c.id).cost <= sn.energy;
     const cls = [view.sel === c.uid ? 'sel' : '', playable ? '' : 'off', view.known.has(c.uid) ? '' : 'new'].join(' ');
@@ -1889,10 +2000,12 @@ async function play(events) {
       case 'block': if (ev.value > 0) Sound.play('shield'); break;
       case 'ash': Sound.play('ash'); break;
       case 'allyIn': Sound.play('summon'); break;
-      case 'enemyActs': anim($('#cmd'), 'pop'); anim($('#intent'), 'pop'); if (!view.fast) banner(ev.text, COL.blood, .3, 560); Sound.play('enemy'); break;
+      case 'enemyActs': if (ev.sig) { flash(COL.blood, .3); anim($('#bt'), 'quake'); buzz(80); } anim($('#cmd'), 'pop'); anim($('#intent'), 'pop'); if (!view.fast) banner(ev.text, COL.blood, .3, 560); Sound.play('enemy'); break;
       case 'burn': flash(COL.ember, .35); anim($('#bt'), 'quake'); banner(`BURN!  ${ev.amount}`, COL.ember, .55, 700); Sound.play('burn'); break;
       case 'info': if (!view.fast) banner(ev.text, COL.paper, .45, 520); break;
       case 'respond': view.fast = false; banner('Respond?', COL.frost, .5, 650); Sound.play('card'); break;
+      case 'phase': flash(COL.blood, .35); anim($('#bt'), 'quake'); anim($('#cmd'), 'pop'); banner(`PHASE 2 · ${ev.name}`, COL.blood, .6, 1200); toast(ev.text, COL.vow); buzz(90); Sound.play('burn'); await sleep(view.fast ? 80 : 700); break;
+      case 'broken': flash(COL.gold, .35); anim($('#bt'), 'quake'); banner(`BROKEN! ${ev.name} fails`, COL.gold, .6, 900); buzz(70); Sound.play('shield'); break;
       case 'countered': anim($('#intent'), 'shake'); banner('COUNTERED!', COL.frost, .55, 650); flash(COL.frost, .25); buzz(35); Sound.play('shield'); break;
       case 'artifacts': Sound.play('shield'); break;
     }
@@ -2025,7 +2138,7 @@ function showHowTo(thenPath) {
     ['Goal', 'Defeat 8 enemies in a row. You heal fully between fights.'],
     ['Classes', [['Pyromancer', 'Ash power: creature deaths and Stoke fill Ash; Burn for big damage.'],
                  ['Arcanist', 'No power. Its starting spells have Flash, so it plays on the enemy’s turn and counters its moves.']]],
-    ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it. Hold any card to read it full size.'],
+    ['Your turn', 'You gain 1 more energy each round, up to 10. Draw a card each turn; your hand carries over. Tap a card to select it, then tap again to play it. Swipe your hand if it doesn’t fit. Hold any card to read it full size.'],
     ['Cards', [['Creature', 'Your one fighter. It takes enemy hits first and attacks at the end of your turn. A new creature replaces the old one.'],
                ['Spell', 'A one-time effect.'],
                ['Artifact', 'Stays in play. Max 3; a 4th replaces your oldest.']]],
@@ -2033,6 +2146,7 @@ function showHowTo(thenPath) {
     ['Pyromancer: Ash and Burn', 'Gain 1 Ash when your creature dies, or Stoke for 2 energy (once per turn). With full Ash, Burn: big damage that ignores Block. Each Burn deals 6 more than the last.'],
     ['The enemy', [['NEXT', 'The box at the top shows its next move.'],
                    ['Passive', 'Every enemy has a trick, shown under its name.'],
+                   ['Bosses', 'Fights 6–8. They change at half HP (phase 2) and charge signature attacks: deal the Break number in one turn to stop it, or counter it.'],
                    ['Lunge', 'Skips your creature and hits you.'],
                    ['Wither', 'Your creature loses attack.'],
                    ['Shatter', 'Destroys your oldest artifact.']]],

@@ -116,7 +116,7 @@ const playId = (b, id) => b.play(cardOf(b, id).uid);
   for (let i = 0; i < 7; i++) C.Meta.buy(m, v); check(C.Meta.lvl(m, 'vitality') === 5 && m.ash === 10000 - 530, 'vitality caps at 5');
   check(C.UNLOCKS.every(u => u.max <= 5), 'every upgrade max 5');
   const old = Object.assign(C.newMeta(), { unlocked: ['vitality1', 'vitality2', 'hotterBurn', 'themeGiants', 'focus1'], ash: 5 }); C.Meta.fix(old); C.Meta.fix(old);
-  check(old.levels.vitality === 2 && old.levels.burn === 2 && old.levels.themeGiants === 1 && old.levels.focus === 2, 'old unlocks migrate to levels');
+  check(old.levels.vitality === 2 && old.levels.burn === 2 && old.levels.themeGiants === 1 && old.levels.focus === 1, 'old unlocks migrate to levels');
   const r = C.Run.create(C.Meta.maxAll(C.newMeta()), 5); check(r.maxHP === 40 && r.stars.filter(x => x).length === 5 && r.augments.length === 1, 'max levels apply to a run'); }
 { const b = battle([{ id: 'strike', lvl: 5 }, 'strike', 'strike', 'strike', 'strike', 'strike']); b.energy = 10; const hp = b.enemyHP; playId(b, 'strike');
   check(b.hand.some(c => c.lvl === 5) || true, 'five stars allowed'); check(C.scale(3, 5) === 11, '5 stars = x3.5'); }
@@ -131,4 +131,19 @@ const playId = (b, id) => b.play(cardOf(b, id).uid);
 { const b = battle(pad(['glimmer', 'emberBolt', 'mirrorImage'])); b.energy = 10; playId(b, 'emberBolt'); const hp = b.enemyHP; playId(b, 'mirrorImage'); check(b.enemyHP === hp - 6, 'mirror image copies last spell'); }
 { const b = battle(pad(['spikedShield'])); b.energy = 10; playId(b, 'spikedShield'); b.intent = { kind: 'attack', amount: 2, hits: 2 }; const hp = b.enemyHP; b.endTurn(); b.takeEvents(); check(b.enemyHP <= hp - 3 && !b.thorns, 'spikes hit back, then reset'); }
 { const b = new C.Battle('inkLeech', 1, Array(12).fill('strike'), 30, [], 0, 7); b.start(); b.takeEvents(); for (const id of ['ashling', 'exhume', 'kindle']) b.hand.push(b.makeCard(id)); b.energy = 10; playId(b, 'ashling'); playId(b, 'kindle'); check(!b.allies.player, 'ashling died'); playId(b, 'exhume'); check(b.allies.player && b.allies.player.cardID === 'ashling', 'exhume returns a creature'); }
+
+
+// Bosses: signature charge, break, counter, phase 2
+{ const b = battle(pad([]), 'cinderWyrm'); b.channel = null; b.pattern = [{ kind: 'channel', name: 'Dragonfire', turns: 2, amount: 30, hits: 1, brk: 20 }, { kind: 'block', amount: 1 }]; b.patternIndex = 0;
+  b.rollIntent(2); check(b.intent.kind === 'channel' && b.intent.left === 2, 'charge telegraphed');
+  b.enemyHP = 999; b.enemyMaxHP = 999; b.execute(b.intent); b.rollIntent(3); check(b.intent.kind === 'channel' && b.intent.left === 1, 'charge counts down');
+  b.execute(b.intent); b.rollIntent(4); check(b.intent.kind === 'attack' && b.intent.sig === 'Dragonfire' && b.intent.amount >= 30, 'then unleashes'); }
+{ const b = battle(pad([]), 'ironAbbot'); b.pattern = [{ kind: 'channel', name: 'Judgment', turns: 2, amount: 22, hits: 1, brk: 10 }]; b.patternIndex = 0; b.rollIntent(2);
+  b.turnDamage = 0; b.hitFace('enemy', 12, true); check(b.intent.kind === 'stagger' && !b.channel, 'break a charge with damage'); }
+{ const b = battle(pad(['counterspell']), 'ironAbbot'); b.energy = 5; b.pattern = [{ kind: 'channel', name: 'Judgment', turns: 2, amount: 22, hits: 1, brk: 99 }, { kind: 'block', amount: 1 }]; b.patternIndex = 0; b.rollIntent(2);
+  b.endTurn(); b.takeEvents(); playId(b, 'counterspell'); b.pass(); b.takeEvents(); check(!b.channel && b.intent.kind !== 'channel', 'counter cancels a charge'); }
+{ const b = battle(pad([]), 'silentChoir'); const half = Math.floor(b.enemyMaxHP / 2); b.hitFace('enemy', b.enemyHP - half + 1, true);
+  check(b.inPhase2 && b.tricks.has('echo') && b.passives.length === 2, 'phase 2 at half HP'); }
+{ const b = battle(pad([]), 'wardenOfPyres'); b.hitFace('enemy', 999, true); check(b.inPhase2 && b.enemyHP === 40 && b.tricks.has('inferno'), 'warden: rebirth starts phase 2'); }
+{ const b = battle(pad([]), 'cinderWyrm'); b.energy = 10; const hp = b.enemyHP; playId(b, 'strike'); check(b.enemyHP === hp - 2, 'molten scales halve small hits'); }
 console.log(fails ? fails + ' FAILURES' : 'ALL PASS');
