@@ -16,10 +16,10 @@ function score(b, c) {
     if (a) return c.id !== 'restless' && d.power + d.health > a.power + a.health + 2 ? 11 + d.cost * 3 : 0;
     return 13 + d.cost * 4;
   }
-  if (d.damaging && !['shieldBash', 'fireball', 'spellstorm', 'martyrsFury', 'boneHarvest'].includes(c.id)) return 10 + d.cost * 4;
+  if (d.damaging && !['shieldBash', 'fireball', 'spellstorm', 'martyrsFury', 'boneHarvest', 'feast', 'scrap'].includes(c.id)) return 10 + d.cost * 4;
   switch (c.id) {
     case 'shieldBash': return b.block >= 6 ? 14 + (b.block >> 1) : 0;
-    case 'guardUp': case 'ashWard': case 'parry': case 'brace': case 'secondWind': case 'ironSkin': { const need = incoming(b) - b.block; return need > 0 ? 12 + Math.min(need, 16) + d.cost : 1; }
+    case 'guardUp': case 'ashWard': case 'parry': case 'spikedShield': case 'brace': case 'secondWind': case 'ironSkin': { const need = incoming(b) - b.block; return need > 0 ? 12 + Math.min(need, 16) + d.cost : 1; }
     case 'kindle': return 5;
     case 'swarmCall': return b.allies.player ? 4 : 8;
     case 'fanFlames': case 'battleCry': return 10 + d.cost * 3;
@@ -42,6 +42,21 @@ function score(b, c) {
     case 'bloodPact': return b.hp > 12 ? 9 : 0;
     case 'martyrsFury': return b.maxHP - b.hp >= 8 ? 10 + (b.maxHP - b.hp) : 0;
     case 'boneHarvest': return b.discard.length >= 4 ? 8 + b.discard.length * 2 : 0;
+    case 'feast': { const a = b.allies.player; return a && a.power + a.health >= 7 ? 12 + a.power + a.health : 0; }
+    case 'scrap': return b.artifacts.length >= 3 ? 14 : 0;
+    case 'shieldWall': { const need = incoming(b) - b.block; return need > 4 && b.allies.player ? 12 + Math.min(need, 14) : 0; }
+    case 'tinker': return b.artifacts.length >= 2 ? 8 + b.artifacts.length * 2 : 0;
+    case 'fanEmbers': return 11;
+    case 'cauterize': { const need = incoming(b) - b.block; return need > 4 && b.scorch >= 6 ? 12 + Math.min(need, b.scorch) : 0; }
+    case 'titansGrip': return 11;
+    case 'rampage': return b.allies.player && b.allies.player.power >= 4 ? 10 + b.allies.player.power : 0;
+    case 'emberShield': { const need = incoming(b) - b.block; return need > 3 && b.ash >= 2 ? 10 + Math.min(need, b.ash * 3) : 0; }
+    case 'frailty': return b.round < 5 ? 13 : 5;
+    case 'silence': return b.enrage >= 2 ? 10 + b.enrage * 2 : 2;
+    case 'mirrorImage': return b.lastSpell && card(b.lastSpell.id).cost >= 2 ? 10 + card(b.lastSpell.id).cost * 4 : 0;
+    case 'bloodletting': return b.hp > 14 && b.hand.some(x => x !== c && card(x.id).cost > b.energy - 1 && card(x.id).cost <= b.energy + 1) ? 12 : 0;
+    case 'exhume': return b.allies.player ? 0 : 14;
+    case 'phaseShift': return incoming(b) >= 6 ? 12 : 0;
     case 'recall': return b.discard.some(x => card(x.id).type === 'spell' && card(x.id).cost >= 2) ? 9 : 0;
   }
   return 1;
@@ -92,12 +107,12 @@ function simulate(runs, unlockAll, fav, seed, cls = 'pyro') {
   const master = new C.RNG(seed);
   let wins = 0, fightSum = 0, bestSum = 0;
   for (let k = 0; k < runs; k++) {
-    const meta = C.newMeta(); if (unlockAll) meta.unlocked = C.UNLOCKS.map(u => u.id);
+    const meta = C.newMeta(); if (unlockAll) C.Meta.maxAll(meta);
     const r = C.Run.create(meta, Math.floor(master.next() * 4e9), cls);
     let won = false;
     while (true) {
       const b = new C.Battle(C.Run.currentEnemy(r), r.fight, C.Run.deckCards(r), r.maxHP, r.augments, C.Meta.classBonus(meta, cls), Math.floor(master.next() * 4e9), cls);
-      b.start(); b.takeEvents();
+      b.startBlock = C.Meta.startBlock(meta); b.start(); b.takeEvents();
       while (b.outcome === 'ongoing' && b.round < 40) playTurn(b);
       r.bestTurn = Math.max(r.bestTurn, b.bestTurn);
       if (b.outcome !== 'won') break;
@@ -128,6 +143,6 @@ for (const cls of ['pyro', 'arcanist']) {
   console.log(`== ${C.CLASSES[cls].name}`);
   console.log('fresh, mixed       ', simulate(n, false, null, 1, cls));
   console.log('all unlocks, mixed ', simulate(n, true, null, 2, cls));
-  for (const t of C.Meta.themes({ unlocked: C.UNLOCKS.map(u => u.id) }, cls))
+  for (const t of C.Meta.themes(C.Meta.maxAll(C.newMeta()), cls))
     console.log(('loves ' + t).padEnd(19), simulate(n, true, t, 3, cls));
 }

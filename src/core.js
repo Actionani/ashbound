@@ -123,6 +123,40 @@ const Core = (() => {
   artifact('prismWard', 'Prism Ward', 2, 'arcana', 'After you counter an action, deal {8} damage and draw a card.', 0, ARC);
   spell('spellSnare', 'Spell Snare', 0, 'arcana', 'Flash. Counter an enemy spell.', { counter: 'spell', ...ARC });
 
+  // ---- Deeper pools (v7) ----
+  spell('emberVolley', 'Ember Volley', 3, 'embers', 'Deal {3} damage 4 times.', D);
+  spell('searingLance', 'Searing Lance', 2, 'embers', 'Deal {7} damage. Ignores Block.', D);
+  artifact('emberIdol', 'Ember Idol', 3, 'embers', 'After you cast a damage spell, deal {2} damage.');
+  spell('spikedShield', 'Spiked Shield', 2, 'bulwark', 'Gain {6} Block. This round, deal {3} damage whenever the enemy attacks.');
+  artifact('bastion', 'Bastion', 3, 'bulwark', 'Your Block no longer wears off.');
+  spell('shieldWall', 'Shield Wall', 2, 'bulwark', "Gain Block equal to twice your creature's health.", A);
+  creature('graveRat', 'Grave Rat', 0, 'swarm', 1, 2, 'Deathrattle: Gain {4} Block.');
+  spell('feast', 'Feast', 1, 'swarm', "Sacrifice your creature. Deal damage equal to its attack plus health.", { ...A, ...D });
+  artifact('endlessBrood', 'Endless Brood', 2, 'swarm', 'Start of turn: If you have no creature, summon a Cinder Moth.');
+  spell('tinker', 'Tinker', 1, 'artifice', 'Draw a card for each artifact you have.');
+  spell('scrap', 'Scrap', 0, 'artifice', 'Destroy your oldest artifact. Deal {8} damage. Draw a card.', D);
+  artifact('battery', 'Battery', 1, 'artifice', 'Start of turn: Gain 1 energy. Lasts 3 turns.', 3);
+  creature('fireAnts', 'Fire Ants', 1, 'scorch', 1, 2, 'Deathrattle: Apply {4} Scorch.');
+  spell('fanEmbers', 'Fan Embers', 0, 'scorch', 'Apply {3} Scorch. Draw a card.');
+  spell('cauterize', 'Cauterize', 2, 'scorch', "Gain Block equal to the enemy's Scorch.");
+  spell('titansGrip', "Titan's Grip", 1, 'giants', 'Give your creature +{2}/+{2}. Draw a card.', A);
+  spell('rampage', 'Rampage', 2, 'giants', 'Your creature attacks now.', A);
+  creature('colossus', 'Colossus', 9, 'giants', 14, 18);
+  spell('emberShield', 'Ember Shield', 1, 'pyre', 'Gain {3} Block for each Ash you have.', PYRO);
+  artifact('kindledHeart', 'Kindled Heart', 3, 'pyre', 'After you Burn, gain 1 Ash.', 0, PYRO);
+  spell('frailty', 'Frailty', 2, 'hex', 'The enemy takes +{1} damage from every hit this fight.');
+  spell('silence', 'Silence', 1, 'hex', "Remove the enemy's Enrage. Draw a card.");
+  spell('arcaneMissile', 'Arcane Missile', 0, 'spellbound', 'Deal {3} damage.', D);
+  artifact('manaFont', 'Mana Font', 2, 'spellbound', 'After your 3rd spell each turn, gain 3 energy.');
+  spell('mirrorImage', 'Mirror Image', 1, 'spellbound', 'Cast a copy of the last spell you cast this turn.');
+  spell('bloodMoon', 'Blood Moon', 3, 'bloodrite', 'Lifesteal. Deal {10} damage.', D);
+  spell('bloodletting', 'Bloodletting', 1, 'bloodrite', 'Lose 4 HP. Gain 2 energy.');
+  artifact('thirstingBlade', 'Thirsting Blade', 3, 'bloodrite', 'Your creature has Lifesteal.');
+  spell('exhume', 'Exhume', 2, 'echoes', 'Summon a random creature from your used pile.');
+  spell('haunt', 'Haunt', 1, 'echoes', 'Deal {4} damage. Return a random used card to your hand.', D);
+  spell('manaLeak', 'Mana Leak', 1, 'arcana', 'Flash. Counter an enemy spell. Deal {4} damage.', { counter: 'spell', ...ARC });
+  spell('phaseShift', 'Phase Shift', 1, 'arcana', 'Flash. Give your creature +0/+{6}.', { ...F, ...A, ...ARC });
+
   // Card-draw artifacts: some clean, some with a price.
   artifact('scholarsLens', "Scholar's Lens", 3, 'artifice', 'Start of turn: Draw a card.');
   artifact('bloodTome', 'Blood Tome', 2, 'bloodrite', 'Start of turn: Draw a card. Lose 2 HP.');
@@ -171,7 +205,7 @@ const Core = (() => {
   const STARTER = ['singe', 'singe', 'singe', 'ashWard', 'boneWard', 'ashling', 'ashling', 'emberBolt', 'huskHound', 'cinderLamp'];
 
   // ---------- Empower (stars) ----------
-  const MAX_STARS = 3;
+  const MAX_STARS = 5;
   const scale = (n, lvl) => Math.round(n * (1 + 0.5 * (lvl || 0)));
   const canEmpower = id => { const d = card(id); return d.nums.length > 0 || d.type === 'creature'; };
   const stats = (id, lvl) => { const d = card(id); return [scale(d.power, lvl), scale(d.health, lvl)]; };
@@ -310,6 +344,9 @@ const Core = (() => {
       if (d.counter && !this.counterFits(d)) return false;
       if (d.needsAlly && !this.allies.player) return false;
       if (c.id === 'turncoat' && !this.allies.enemy) return false;
+      if (c.id === 'scrap' && !this.artifacts.length) return false;
+      if (c.id === 'exhume' && !this.discard.some(x => card(x.id).type === 'creature')) return false;
+      if (c.id === 'mirrorImage' && !this.lastSpell) return false;
       return true;
     }
     blockedReason(c) {
@@ -320,10 +357,14 @@ const Core = (() => {
       if (this.costOf(c) > this.energy) return 'Not enough energy.';
       if (d.needsAlly && !this.allies.player) return 'Needs a creature.';
       if (c.id === 'turncoat' && !this.allies.enemy) return 'No enemy minion.';
+      if (c.id === 'scrap' && !this.artifacts.length) return 'You have no artifact.';
+      if (c.id === 'exhume' && !this.discard.some(x => card(x.id).type === 'creature')) return 'No creature in your used pile.';
+      if (c.id === 'mirrorImage' && !this.lastSpell) return 'Cast another spell first this turn.';
       return null;
     }
 
     start() {
+      if (this.startBlock) this.gainBlock(this.startBlock);
       if (this.trick === 'brood') this.summonMinion('grub');
       if (this.aug.has('ironThimble')) this.gainBlock(10);
       this.draw(3 + (this.aug.has('boneDice') ? 2 : 0));
@@ -333,8 +374,8 @@ const Core = (() => {
 
     beginTurn() {
       this.round++;
-      this.turnDamage = 0; this.spellsThisTurn = 0; this.echoUsed = false; this.smokeUsed = false; this.foresightUsed = false;
-      if (this.round > 1 && this.block !== 0) { this.block = 0; this.ev('block', { side: 'player', value: 0 }); }
+      this.turnDamage = 0; this.spellsThisTurn = 0; this.echoUsed = false; this.smokeUsed = false; this.foresightUsed = false; this.lastSpell = null;
+      if (this.round > 1 && this.block !== 0 && !this.has('bastion')) { this.block = 0; this.ev('block', { side: 'player', value: 0 }); }
       this.maxEnergyThisRound = Math.min(this.round, MAX_ENERGY) + (this.aug.has('emberHeart') ? 1 : 0) + this.count('hourglass') + this.bonusEnergy;
       this.bonusEnergy = 0;
       this.energy = this.maxEnergyThisRound;
@@ -356,6 +397,11 @@ const Core = (() => {
         if (a.id === 'ironTotem') { this.ev('artifactFires', { uid: a.uid }); this.gainBlock(this.N(a)); }
         else if (a.id === 'ashCenser') { this.ev('artifactFires', { uid: a.uid }); this.gainAsh(1); }
         else if (a.id === 'sunForge') { this.ev('artifactFires', { uid: a.uid }); this.hitFront('enemy', this.N(a, 0)); this.gainBlock(this.N(a, 1)); }
+        else if (a.id === 'endlessBrood' && !this.allies.player) { this.ev('artifactFires', { uid: a.uid }); this.summonPlayer('cinderMoth', a.lvl); }
+        else if (a.id === 'battery') {
+          this.ev('artifactFires', { uid: a.uid }); this.energy++; this.ev('energy');
+          if (--a.charges <= 0) { this.artifacts.splice(this.artifacts.indexOf(a), 1); this.ev('info', { text: 'The Battery runs dry.' }); this.ev('artifacts'); }
+        }
         else if (a.id === 'scholarsLens' || a.id === 'howlingBell') { this.ev('artifactFires', { uid: a.uid }); this.draw(1); }
         else if (a.id === 'bloodTome') { this.ev('artifactFires', { uid: a.uid }); this.draw(1); this.loseHP(2); }
         else if (a.id === 'debtLedger') { this.ev('artifactFires', { uid: a.uid }); this.loseHP(2); }
@@ -420,6 +466,12 @@ const Core = (() => {
         }
         const f = this.allies.player;
         if (f && f.cardID === 'familiar' && this.outcome === 'ongoing') this.buffAlly(this.N(f, 0), this.N(f, 1));
+        if (c.id !== 'mirrorImage') this.lastSpell = c;
+        for (const a of this.artifacts.slice()) {
+          if (this.outcome !== 'ongoing') break;
+          if (a.id === 'emberIdol' && d.damaging) { this.ev('artifactFires', { uid: a.uid }); this.hitFront('enemy', this.N(a)); }
+          if (a.id === 'manaFont' && this.spellsThisTurn === 3) { this.ev('artifactFires', { uid: a.uid }); this.energy += 3; this.ev('energy'); }
+        }
       }
       this.checkOutcome();
       return true;
@@ -442,6 +494,7 @@ const Core = (() => {
       this.ev('burn', { amount: d });
       this.hitFace('enemy', d, true);
       for (const a of this.artifacts.slice()) {
+        if (a.id === 'kindledHeart' && this.outcome === 'ongoing') { this.ev('artifactFires', { uid: a.uid }); this.gainAsh(1); }
         if (a.id === 'pyreAltar' && this.outcome === 'ongoing') {
           this.ev('artifactFires', { uid: a.uid });
           this.gainBlock(this.N(a));
@@ -463,7 +516,7 @@ const Core = (() => {
           this.hitFront('enemy', pw);
           if (this.trick === 'riposte' && this.allies.player === cur && this.outcome === 'ongoing') { this.ev('info', { text: 'Riposte!' }); this.hitAlly('player', 3); }
           if (cur.cardID === 'scorchImp') this.applyScorch(this.N(cur));
-          if (cur.cardID === 'vampire') this.healPlayer(pw);
+          if (cur.cardID === 'vampire' || this.has('thirstingBlade')) this.healPlayer(pw);
         }
         if (this.outcome !== 'ongoing') return;
       }
@@ -509,7 +562,7 @@ const Core = (() => {
         if (this.outcome !== 'ongoing') return;
       }
       if (this.allies.enemy && this.allies.enemy.fresh) this.allies.enemy.fresh = false;
-      if (this.weaken !== 0 || this.exposed) { this.weaken = 0; this.exposed = false; this.ev('status'); }
+      if (this.weaken !== 0 || this.exposed || this.thorns) { this.weaken = 0; this.exposed = false; this.thorns = 0; this.ev('status'); }
       this.rollIntent(this.round + 1);
       this.beginTurn();
     }
@@ -559,6 +612,39 @@ const Core = (() => {
         case 'catalyst': this.applyScorch(this.scorch); break;
         case 'wildfire': if (this.scorch > 0) this.hitFace('enemy', this.scorch + sb, true); this.applyScorch(n(0)); break;
         case 'glimmer': this.draw(1); break;
+        case 'emberVolley': for (let k = 0; k < 4 && this.outcome === 'ongoing'; k++) this.hitFront('enemy', n(0) + sb); break;
+        case 'searingLance': this.hitFace('enemy', n(0) + sb, true); break;
+        case 'spikedShield': this.gainBlock(n(0)); this.thorns = (this.thorns || 0) + n(1); this.ev('status'); break;
+        case 'shieldWall': if (this.allies.player) this.gainBlock(2 * this.allies.player.health); break;
+        case 'feast': { const a = this.allies.player; if (a) { const dmg = a.power + a.health; this.killAlly('player'); this.hitFront('enemy', dmg + sb); } break; }
+        case 'tinker': this.draw(this.artifacts.length); break;
+        case 'scrap': { const old = this.artifacts.shift(); if (old) { this.ev('info', { text: `${card(old.id).name} is scrapped.` }); this.ev('artifacts'); } this.hitFront('enemy', n(0) + sb); this.draw(1); break; }
+        case 'fanEmbers': this.applyScorch(n(0)); this.draw(1); break;
+        case 'cauterize': this.gainBlock(this.scorch); break;
+        case 'titansGrip': this.buffAlly(n(0), n(1)); this.draw(1); break;
+        case 'rampage': {
+          const a = this.allies.player;
+          if (a && a.power > 0) { this.ev('allyAttacks', { side: 'player' }); const pw = a.power; this.hitFront('enemy', pw);
+            if (a.cardID === 'vampire' || this.has('thirstingBlade')) this.healPlayer(pw); }
+          break;
+        }
+        case 'emberShield': this.gainBlock(n(0) * this.ash); break;
+        case 'frailty': this.frailty = (this.frailty || 0) + n(0); this.ev('status'); break;
+        case 'silence': if (this.enrage) { this.enrage = 0; this.ev('info', { text: 'Enrage removed.' }); this.ev('status'); } this.draw(1); break;
+        case 'arcaneMissile': this.hitFront('enemy', n(0) + sb); break;
+        case 'mirrorImage': if (this.lastSpell) { this.ev('info', { text: `Mirror Image copies ${card(this.lastSpell.id).name}.` }); this.resolve(this.lastSpell, spellsBefore); } break;
+        case 'bloodMoon': this.hitFront('enemy', n(0) + sb); this.healPlayer(n(0) + sb); break;
+        case 'bloodletting': this.loseHP(4); this.energy += 2; this.ev('energy'); break;
+        case 'exhume': {
+          const cs = this.discard.filter(x => card(x.id).type === 'creature');
+          if (cs.length) { const x = cs[this.rng.int(0, cs.length)]; if (this.allies.player) this.killAlly('player'); if (this.outcome === 'ongoing') this.summonPlayer(x.id, x.lvl, x.uid); }
+          break;
+        }
+        case 'haunt': this.hitFront('enemy', n(0) + sb);
+          if (this.discard.length > 1 && this.hand.length < 10) { const pool = this.discard.filter(x => x.uid !== c.uid); const x = pool[this.rng.int(0, pool.length)]; this.discard.splice(this.discard.indexOf(x), 1); this.hand.push(x); this.ev('hand'); }
+          break;
+        case 'manaLeak': this.counter(); this.hitFront('enemy', n(0) + sb); break;
+        case 'phaseShift': this.buffAlly(0, n(0)); break;
         case 'quickBolt': case 'arcBolt': this.hitFront('enemy', n(0) + sb); break;
         case 'manaBolt': this.hitFront('enemy', n(0) + n(1) * ((this.spellsCast || 1) - 1) + sb); break;
         case 'parry': this.gainBlock(n(0)); break;
@@ -672,6 +758,7 @@ const Core = (() => {
       return 0;
     }
     enemyAttack(raw, skipAlly) {
+      if (this.thorns) { this.ev('info', { text: `Spikes deal ${this.thorns}.` }); this.hitFace('enemy', this.thorns); if (this.outcome !== 'ongoing') return; }
       let dmg = Math.max(0, raw - this.weaken + 2 * this.count('howlingBell'));
       const i = this.artifacts.findIndex(a => a.id === 'mirrorShard');
       if (i >= 0) {
@@ -712,6 +799,7 @@ const Core = (() => {
       this.checkOutcome();
     }
     enemyReduce(a) {
+      if (this.frailty && a > 0) a += this.frailty;
       if (this.trick === 'plated') a = Math.max(0, a - 1);
       if (this.trick === 'smoke' && !this.smokeUsed && a > 0) { this.smokeUsed = true; a = Math.ceil(a / 2); }
       return a;
@@ -736,7 +824,8 @@ const Core = (() => {
         else if (art.id === 'soulFurnace') { this.ev('artifactFires', { uid: art.uid }); this.energy++; this.ev('energy'); this.draw(1); }
       }
       if (a.cardID === 'cinderMoth') this.hitFront('enemy', this.N(a));
-      else if (a.cardID === 'boneWard') this.gainBlock(this.N(a));
+      else if (a.cardID === 'boneWard' || a.cardID === 'graveRat') this.gainBlock(this.N(a));
+      else if (a.cardID === 'fireAnts') this.applyScorch(this.N(a));
       else if (a.cardID === 'emberFox') this.draw(1);
       else if (a.cardID === 'phoenix') this.gainAsh(2);
       else if (a.cardID === 'broodMother' && this.outcome === 'ongoing' && !this.allies.player) this.summonPlayer('cinderMoth', a.lvl);
@@ -847,6 +936,8 @@ const Core = (() => {
       if (this.enrage > 0) p.push(`Enraged +${this.enrage}`);
       if (this.scorch > 0) p.push(`Scorch ${this.scorch}`);
       if (this.rotDmg > 0) p.push(`Rot ${this.rotDmg}/turn`);
+      if (this.frailty) p.push(`Frail +${this.frailty}`);
+      if (this.thorns) p.push(`Spikes ${this.thorns}`);
       if (this.weaken > 0) p.push(`Weak −${this.weaken}`);
       if (this.exposed) p.push('Exposed');
       return p.join(' · ');
@@ -865,36 +956,54 @@ const Core = (() => {
   }
 
   // ---------- Meta (permanent unlocks) ----------
+  // Shrine upgrades. Each has up to 5 levels (MAX_LEVEL); cost[i] buys level i+1.
+  const MAX_LEVEL = 5;
+  const UPGRADE_GROUPS = ['Combat', 'Hero Power', 'Archetypes', 'Rewards'];
   const UNLOCKS = [
-    ['vitality1', 'Vitality I', '+3 max HP.', 40, null],
-    ['themeGiants', 'Giants', 'Adds the Giants theme: big creatures and buffs.', 50, null],
-    ['hotterBurn', 'Hotter Burn I', 'Pyromancer: Burn deals +2 damage.', 60, null],
-    ['widerChoice', 'Wider Choice', 'Choose from 4 card bundles instead of 3.', 80, null],
-    ['vitality2', 'Vitality II', '+3 max HP.', 100, 'vitality1'],
-    ['themePyre', 'Pyre', 'Pyromancer: adds the Pyre theme (Ash and Burn).', 90, null],
-    ['treasureHunter', 'Treasure Hunter', 'Choose from 4 Augments instead of 3.', 110, null],
-    ['headStart', 'Head Start', 'Start each run with a random Augment.', 150, null],
-    ['hotterBurn2', 'Hotter Burn II', 'Pyromancer: Burn deals +2 damage.', 120, 'hotterBurn'],
-    ['focus1', 'Focus I', 'Arcanist: Flash damage spells deal +2 damage.', 60, null],
-    ['focus2', 'Focus II', 'Arcanist: Flash damage spells deal +2 damage.', 120, 'focus1'],
-    ['vitality3', 'Vitality III', '+3 max HP.', 160, 'vitality2'],
-  ].map(([id, name, detail, cost, requires]) => ({ id, name, detail, cost, requires }));
+    ['vitality', 'Vitality', 'Combat', null, '+2 max HP per level.', [40, 70, 100, 140, 180]],
+    ['guard', 'Guarded Start', 'Combat', null, 'Start each fight with +2 Block per level.', [30, 60, 90, 120, 150]],
+    ['burn', 'Hotter Burn', 'Hero Power', 'pyro', 'Burn deals +1 damage per level.', [50, 80, 110, 140, 170]],
+    ['focus', 'Focus', 'Hero Power', 'arcanist', 'Flash damage spells deal +1 damage per level.', [50, 80, 110, 140, 170]],
+    ['themeGiants', 'Giants', 'Archetypes', null, 'Adds the Giants theme: big creatures and buffs.', [50]],
+    ['themePyre', 'Pyre', 'Archetypes', 'pyro', 'Adds the Pyre theme: more Ash and Burn.', [90]],
+    ['forge', 'Forged Start', 'Rewards', null, 'Each run, 1 random starting card per level begins with ★.', [60, 90, 120, 150, 180]],
+    ['widerChoice', 'Wider Choice', 'Rewards', null, 'Choose from 4 card bundles instead of 3.', [80]],
+    ['treasureHunter', 'Treasure Hunter', 'Rewards', null, 'Choose from 4 Augments instead of 3.', [110]],
+    ['headStart', 'Head Start', 'Rewards', null, 'Start each run with a random Augment.', [150]],
+  ].map(([id, name, group, cls, detail, costs]) => ({ id, name, group, cls, detail, costs, max: costs.length }));
+  // Old one-off unlocks map onto the new levelled ones.
+  const OLD_UNLOCKS = { vitality1: 'vitality', vitality2: 'vitality', vitality3: 'vitality', hotterBurn: 'burn', hotterBurn2: 'burn',
+    focus1: 'focus', focus2: 'focus', themeGiants: 'themeGiants', themePyre: 'themePyre', widerChoice: 'widerChoice',
+    treasureHunter: 'treasureHunter', headStart: 'headStart', themeHex: null };
 
-  const newMeta = () => ({ ash: 0, lifetimeAsh: 0, unlocked: [], runs: 0, wins: 0, bestFight: 0, bestTurn: 0, soundOn: true, seenTutorial: false });
+  const newMeta = () => ({ ash: 0, lifetimeAsh: 0, unlocked: [], levels: {}, migrated: false, runs: 0, wins: 0, bestFight: 0, bestTurn: 0, soundOn: true, seenTutorial: false });
   const Meta = {
-    vitality: m => ['vitality1', 'vitality2', 'vitality3'].filter(u => m.unlocked.includes(u)).length,
-    burnBonus: m => ['hotterBurn', 'hotterBurn2'].filter(u => m.unlocked.includes(u)).length * 2,
+    // Convert old saves (a list of bought unlocks) into levels.
+    fix(m) {
+      m.levels = m.levels || {};
+      if (!m.migrated) {
+        for (const u of m.unlocked || []) { const k = OLD_UNLOCKS[u]; if (k) m.levels[k] = Math.min(MAX_LEVEL, (m.levels[k] || 0) + (k === 'burn' || k === 'focus' ? 2 : 1)); }
+        m.migrated = true;
+      }
+      return m;
+    },
+    lvl: (m, id) => (Meta.fix(m).levels[id] || 0),
+    vitality: m => Meta.lvl(m, 'vitality'),
+    startBlock: m => 2 * Meta.lvl(m, 'guard'),
+    burnBonus: m => Meta.lvl(m, 'burn'),
     // Burn bonus for the Pyromancer, Flash damage bonus for the Arcanist.
-    classBonus: (m, cls) => cls === 'arcanist' ? ['focus1', 'focus2'].filter(u => m.unlocked.includes(u)).length * 2 : Meta.burnBonus(m),
+    classBonus: (m, cls) => cls === 'arcanist' ? Meta.lvl(m, 'focus') : Meta.burnBonus(m),
+    nextCost: (m, u) => Meta.lvl(m, u.id) < u.max ? u.costs[Meta.lvl(m, u.id)] : null,
     themes: (m, cls = 'pyro') => {
       const t = ['embers', 'bulwark', 'swarm', 'artifice', 'scorch', 'spellbound', 'bloodrite', 'echoes', 'hex'];
-      if (m.unlocked.includes('themeGiants')) t.push('giants');
-      if (cls === 'pyro' && m.unlocked.includes('themePyre')) t.push('pyre');
+      if (Meta.lvl(m, 'themeGiants')) t.push('giants');
+      if (cls === 'pyro' && Meta.lvl(m, 'themePyre')) t.push('pyre');
       if (cls === 'arcanist') t.push('arcana');
       return t;
     },
-    canBuy: (m, u) => !m.unlocked.includes(u.id) && m.ash >= u.cost && (!u.requires || m.unlocked.includes(u.requires)),
-    buy: (m, u) => { if (!Meta.canBuy(m, u)) return false; m.ash -= u.cost; m.unlocked.push(u.id); return true; },
+    canBuy: (m, u) => { const c = Meta.nextCost(m, u); return c != null && m.ash >= c; },
+    buy: (m, u) => { if (!Meta.canBuy(m, u)) return false; m.ash -= Meta.nextCost(m, u); m.levels[u.id] = Meta.lvl(m, u.id) + 1; return true; },
+    maxAll: m => { m.levels = Object.fromEntries(UNLOCKS.map(u => [u.id, u.max])); return m; },
     bank: (m, n) => { m.ash += n; m.lifetimeAsh += n; },
   };
 
@@ -904,11 +1013,14 @@ const Core = (() => {
     create(meta, seed, cls = 'pyro') {
       const rng = new RNG(seed);
       const start = cls === 'arcanist' ? STARTER_ARC : STARTER;
-      const r = { rngState: 0, cls, maxHP: 30 + 3 * Meta.vitality(meta), deck: start.slice(), stars: start.map(() => 0), augments: [], fight: 1, opponents: [],
+      const r = { rngState: 0, cls, maxHP: 30 + 2 * Meta.vitality(meta), deck: start.slice(), stars: start.map(() => 0), augments: [], fight: 1, opponents: [],
                   stage: 'preFight', ashEarned: 0, pendingBundles: [], pendingAugments: [], pendingArtifact: null, empowersLeft: 0, bestTurn: 0 };
       r.opponents = [...rng.shuffle(enemiesOfTier(1)).slice(0, 2), ...rng.shuffle(enemiesOfTier(2)).slice(0, 3),
                      ...rng.shuffle(enemiesOfTier(3)).slice(0, 2), rng.shuffle(enemiesOfTier(4))[0]];
-      if (meta.unlocked.includes('headStart')) r.augments.push(rng.pick(augmentsFor(cls)));
+      for (let i = 0; i < Meta.lvl(meta, 'headStart'); i++) r.augments.push(rng.pick(augmentsFor(cls).filter(a => !r.augments.includes(a))));
+      const forge = rng.shuffle(r.deck.map((_, i) => i)).slice(0, Meta.lvl(meta, 'forge'));
+      for (const i of forge) r.stars[i] = 1;
+      r.startBlock = Meta.startBlock(meta);
       r.rngState = rng.s;
       return r;
     },
@@ -927,7 +1039,7 @@ const Core = (() => {
       const g = Run.rng(r);
       Run.fix(r);
       const fits = c => !c.cls || c.cls === r.cls;
-      const themes = g.shuffle(Meta.themes(meta, r.cls)).slice(0, meta.unlocked.includes('widerChoice') ? 4 : 3);
+      const themes = g.shuffle(Meta.themes(meta, r.cls)).slice(0, Meta.lvl(meta, 'widerChoice') ? 4 : 3);
       r.pendingBundles = themes.map(t => {
         const pool = cardsOf(t).filter(fits);
         const picks = [];
@@ -965,7 +1077,7 @@ const Core = (() => {
       r.empowersLeft = 0;
       if (AUGMENT_AFTER.includes(r.fight)) {
         const g = Run.rng(r);
-        const n = meta.unlocked.includes('treasureHunter') ? 4 : 3;
+        const n = Meta.lvl(meta, 'treasureHunter') ? 4 : 3;
         r.pendingAugments = g.shuffle(augmentsFor(r.cls).filter(a => !r.augments.includes(a))).slice(0, n);
         Run.save(r, g);
         r.stage = 'augment';
@@ -992,10 +1104,10 @@ const Core = (() => {
     ['Flash', 'Can be cast after you end your turn, before the enemy acts.'],
     ['Counter', 'Cancel the enemy’s action. Its spells are any move that isn’t an attack.'],
     ['Battlecry', 'Happens when you play this.'],
-    ['Empower ★', 'Boosts a card’s gold numbers by 50%. Max ★★★.'],
+    ['Empower ★', 'Boosts a card’s gold numbers by 50% per ★. Max 5 ★.'],
   ];
 
-  return { RNG, CARDS, card, cardsOf, THEMES, CLASSES, STARTER_ARC, ATTACK_KINDS, augmentsFor, MAX_STARS, scale, canEmpower, stats, textParts, cardText, STARTER, AUGMENTS, AUGMENT_IDS, ENEMIES, MINIONS, TUNING, Battle,
+  return { RNG, CARDS, card, cardsOf, THEMES, MAX_LEVEL, UPGRADE_GROUPS, CLASSES, STARTER_ARC, ATTACK_KINDS, augmentsFor, MAX_STARS, scale, canEmpower, stats, textParts, cardText, STARTER, AUGMENTS, AUGMENT_IDS, ENEMIES, MINIONS, TUNING, Battle,
            UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY };
 })();
 if (typeof module !== 'undefined') module.exports = Core;

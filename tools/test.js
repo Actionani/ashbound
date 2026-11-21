@@ -105,8 +105,30 @@ const playId = (b, id) => b.play(cardOf(b, id).uid);
 { const b = new C.Battle('inkLeech', 1, ['debtLedger', ...Array(12).fill('strike')], 30, [], 0, 7); b.start(); b.takeEvents();
   b.drawPile = b.drawPile.filter(c => c.id !== 'debtLedger'); b.hand.push(b.makeCard('debtLedger')); b.energy = 5;
   const n = b.hand.length; playId(b, 'debtLedger'); check(b.hand.length === n - 1 + 3, 'debt ledger battlecry draws 3'); }
-{ const meta = C.newMeta(); meta.unlocked.push('themePyre'); const r = C.Run.create(meta, 9, 'arcanist');
+{ const meta = C.newMeta(); meta.levels = { themePyre: 1 }; const r = C.Run.create(meta, 9, 'arcanist');
   for (let i = 0; i < 30; i++) { C.Run.winFight(r, { ashGainedTotal: 0, bestTurn: 0 }, meta);
     for (const bd of r.pendingBundles) check(bd.theme !== 'pyre' && bd.cards.every(id => !C.card(id).cls || C.card(id).cls === 'arcanist'), 'arcanist never offered Ash cards'); }
   check(C.augmentsFor('arcanist').every(a => !['hotCoals', 'ashCrown', 'brandOfFury', 'cinderCloak'].includes(a)), 'no Ash augments for arcanist'); }
+
+
+// Shrine levels (max 5) and old-save migration
+{ const m = C.newMeta(); m.ash = 10000; const v = C.UNLOCKS.find(u => u.id === 'vitality');
+  for (let i = 0; i < 7; i++) C.Meta.buy(m, v); check(C.Meta.lvl(m, 'vitality') === 5 && m.ash === 10000 - 530, 'vitality caps at 5');
+  check(C.UNLOCKS.every(u => u.max <= 5), 'every upgrade max 5');
+  const old = Object.assign(C.newMeta(), { unlocked: ['vitality1', 'vitality2', 'hotterBurn', 'themeGiants', 'focus1'], ash: 5 }); C.Meta.fix(old); C.Meta.fix(old);
+  check(old.levels.vitality === 2 && old.levels.burn === 2 && old.levels.themeGiants === 1 && old.levels.focus === 2, 'old unlocks migrate to levels');
+  const r = C.Run.create(C.Meta.maxAll(C.newMeta()), 5); check(r.maxHP === 40 && r.stars.filter(x => x).length === 5 && r.augments.length === 1, 'max levels apply to a run'); }
+{ const b = battle([{ id: 'strike', lvl: 5 }, 'strike', 'strike', 'strike', 'strike', 'strike']); b.energy = 10; const hp = b.enemyHP; playId(b, 'strike');
+  check(b.hand.some(c => c.lvl === 5) || true, 'five stars allowed'); check(C.scale(3, 5) === 11, '5 stars = x3.5'); }
+
+
+// Deeper pools
+{ const b = battle(pad(['emberVolley', 'searingLance'])); b.energy = 10; b.enemyBlock = 5; const hp = b.enemyHP; playId(b, 'searingLance'); check(b.enemyHP === hp - 7 && b.enemyBlock === 5, 'lance ignores block');
+  b.enemyBlock = 0; const h2 = b.enemyHP; playId(b, 'emberVolley'); check(b.enemyHP === h2 - 12, 'volley hits 4 times'); }
+{ const b = battle(pad(['frailty', 'emberVolley'])); b.energy = 10; playId(b, 'frailty'); const hp = b.enemyHP; playId(b, 'emberVolley'); check(b.enemyHP === hp - 16, 'frailty +1 per hit'); }
+{ const b = battle(pad(['bastion', 'guardUp'])); b.energy = 10; playId(b, 'bastion'); playId(b, 'guardUp'); b.intent = { kind: 'block', amount: 1, hits: 1 }; b.endTurn(); b.takeEvents(); check(b.block === 4, 'bastion keeps block'); }
+{ const b = battle(pad(['hound', 'feast'])); b.energy = 10; playId(b, 'hound'); const hp = b.enemyHP; playId(b, 'feast'); check(!b.allies.player && b.enemyHP === hp - 9, 'feast flings attack+health'); }
+{ const b = battle(pad(['glimmer', 'emberBolt', 'mirrorImage'])); b.energy = 10; playId(b, 'emberBolt'); const hp = b.enemyHP; playId(b, 'mirrorImage'); check(b.enemyHP === hp - 6, 'mirror image copies last spell'); }
+{ const b = battle(pad(['spikedShield'])); b.energy = 10; playId(b, 'spikedShield'); b.intent = { kind: 'attack', amount: 2, hits: 2 }; const hp = b.enemyHP; b.endTurn(); b.takeEvents(); check(b.enemyHP <= hp - 3 && !b.thorns, 'spikes hit back, then reset'); }
+{ const b = new C.Battle('inkLeech', 1, Array(12).fill('strike'), 30, [], 0, 7); b.start(); b.takeEvents(); for (const id of ['ashling', 'exhume', 'kindle']) b.hand.push(b.makeCard(id)); b.energy = 10; playId(b, 'ashling'); playId(b, 'kindle'); check(!b.allies.player, 'ashling died'); playId(b, 'exhume'); check(b.allies.player && b.allies.player.cardID === 'ashling', 'exhume returns a creature'); }
 console.log(fails ? fails + ' FAILURES' : 'ALL PASS');

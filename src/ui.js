@@ -1,5 +1,5 @@
 {
-const { card, CLASSES, THEMES, AUGMENTS, ENEMIES, Battle, UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY, RNG, textParts, cardText, stats, MAX_STARS } = Core;
+const { card, CLASSES, THEMES, AUGMENTS, ENEMIES, Battle, UNLOCKS, Meta, newMeta, Run, AUGMENT_AFTER, MAX_ARTIFACTS, TOTAL_FIGHTS, GLOSSARY, RNG, UPGRADE_GROUPS, textParts, cardText, stats, MAX_STARS } = Core;
 const $ = s => document.querySelector(s);
 const app = $('#app');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -130,7 +130,7 @@ const Store = (() => {
         } catch (e) {}
       }
       const pick = [remote, local].filter(Boolean).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
-      if (pick) { G.meta = Object.assign(newMeta(), pick.meta); G.run = Run.fix(pick.run || null); }
+      if (pick) { G.meta = Meta.fix(Object.assign(newMeta(), pick.meta)); G.run = Run.fix(pick.run || null); }
     },
     save() {
       const data = { meta: G.meta, run: G.run, savedAt: Date.now() };
@@ -185,7 +185,7 @@ function cardHTML(id, o = {}) {
   const [pw, hp] = stats(id, lvl), up = lvl > 0 ? ' up' : '';
   return `<div class="card ${d.type === 'creature' ? 'cr' : ''} ${lvl ? 'lv' : ''} ${o.cls || ''}" style="--c:${c}" ${o.uid != null ? `data-uid="${o.uid}"` : ''} ${o.attr || ''}>
 <div class="cost">${d.cost}</div><div class="nm">${esc(d.name)}</div>${sigil(id, c, { cls: 'art', lw: 2.6 })}
-<div class="ty">${lvl ? `<span class="stars">${'★'.repeat(lvl)}</span>` : ''}${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx">${tx}</div>` : ''}
+<div class="ty">${lvl ? `<span class="stars">${lvl <= 3 ? '★'.repeat(lvl) : '★' + lvl}</span>` : ''}${esc(ty[0].toUpperCase() + ty.slice(1))}</div>${d.text ? `<div class="tx">${tx}</div>` : ''}
 ${d.type === 'creature' ? `<div class="p${up}">${pw}</div><div class="h${up}">${hp}</div>` : ''}</div>`;
 }
 const KEYWORDS = Object.fromEntries(GLOSSARY.map(([k, v]) => [k.replace(/ ★$/, ''), v]));
@@ -217,16 +217,16 @@ function showMenu() {
   const s = screen(`<div class="menu-hero">${sigil('ashbound-menu', COL.ember, { eye: true, glow: true, lw: 1.6 })}
 <div class="t"><h1>ASH</h1><div class="dim" style="font:600 17px var(--title)">a roguelike card game</div></div></div>
 <div class="stack">
-${G.run ? `<button class="btn primary" id="cont">Continue · ${CLASSES[G.run.cls || 'pyro'].name} · Fight ${G.run.fight}</button><button class="btn danger" id="aband">Abandon Run</button>`
-        : `<button class="btn primary" id="begin">Begin a Run</button>`}
+${G.run ? `<button class="btn primary" id="cont">Continue · ${CLASSES[G.run.cls || 'pyro'].name} · Fight ${G.run.fight}</button><button class="btn" id="aband">New Run</button>`
+        : `<button class="btn primary" id="begin">New Run</button>`}
 <button class="btn" id="shrine">Shrine</button><button class="btn" id="how">How to Play</button>
 <button class="btn quiet" id="snd">Sound: ${m.soundOn ? 'On' : 'Off'}</button></div>
 <div class="foot">Cinders ${m.ash} · Runs ${m.runs} · Victories ${m.wins}</div>`);
   on(s, '#begin', () => showClassPick());
   on(s, '#cont', () => continueRun());
   on(s, '#aband', el => {
-    if (!confirmAbandon) { confirmAbandon = true; el.textContent = 'Tap again to abandon'; return; }
-    const banked = endRun(false); toast(`Run abandoned. ${banked} Cinders banked.`, COL.ash); showMenu();
+    if (!confirmAbandon) { confirmAbandon = true; el.classList.add('danger'); el.textContent = 'Tap again: end current run'; return; }
+    const banked = endRun(false); toast(`Run ended. ${banked} Cinders banked.`, COL.ash); showClassPick();
   });
   on(s, '#shrine', () => showShrine());
   on(s, '#how', () => showHowTo(false));
@@ -294,6 +294,7 @@ function startBattle() {
   const r = G.run;
   Run.fix(r);
   B = new Battle(Run.currentEnemy(r), r.fight, Run.deckCards(r), r.maxHP, r.augments, Meta.classBonus(G.meta, r.cls), Run.nextSeed(r), r.cls);
+  B.startBlock = Meta.startBlock(G.meta);
   B.captureSnaps = true;
   Store.save();
   view = { sel: null, busy: false, done: false, known: new Set(), lastCombo: 0 };
@@ -548,7 +549,7 @@ function showEmpower() {
   const seen = new Set(), list = opts.filter(i => { const k = r.deck[i] + ':' + r.stars[i]; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => card(r.deck[a]).cost - card(r.deck[b]).cost || card(r.deck[a]).name.localeCompare(card(r.deck[b]).name) || r.stars[b] - r.stars[a]);
   const s = screen(`<h1 class="center" style="color:var(--gold);font-size:30px">Empower a Card</h1>
-<div class="center dim small" style="font-weight:700;margin:4px 0 2px">Each ★ boosts its gold numbers by 50%. Max ${'★'.repeat(MAX_STARS)}.${r.empowersLeft > 1 ? ` ${r.empowersLeft} left.` : ''}</div>
+<div class="center dim small" style="font-weight:700;margin:4px 0 2px">Each ★ boosts its gold numbers by 50%. Max ${MAX_STARS} ★.${r.empowersLeft > 1 ? ` ${r.empowersLeft} left.` : ''}</div>
 <div class="emp-prev" id="prev"><span class="faint small" style="font-weight:700">Tap a card to preview it</span></div>
 <div class="scroll"><div class="grid emp-pick">${list.map(i => cardHTML(r.deck[i], { lvl: r.stars[i], attr: `data-i="${i}"` })).join('')}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn gold" id="take" disabled>Empower</button><button class="btn quiet" id="skip">Skip</button></div>`);
@@ -588,15 +589,17 @@ ${bestTurn ? `<div class="best">Biggest turn: ${bestTurn} damage${bestTurn >= (G
 }
 function showShrine() {
   const m = G.meta;
-  const rows = UNLOCKS.map(u => {
-    const owned = m.unlocked.includes(u.id), locked = !owned && u.requires && !m.unlocked.includes(u.requires);
-    const req = locked ? UNLOCKS.find(x => x.id === u.requires).name : '';
-    return `<div class="panel unlock" style="cursor:default;${owned ? 'border-color:rgba(255,122,58,.5)' : ''}"><div><b style="${owned ? 'color:var(--ember)' : ''}">${u.name}</b>
-<span class="dim small" style="font-weight:600">${locked ? `Requires ${req}.` : u.detail}</span></div>
-${owned ? '<span class="owned">Offered</span>' : `<button class="btn ${Meta.canBuy(m, u) ? 'primary' : ''}" data-u="${u.id}" ${Meta.canBuy(m, u) ? '' : 'disabled'}>${u.cost} Ash</button>`}</div>`;
-  }).join('');
-  const s = screen(`<h1 class="center" style="font-size:32px">Shrine</h1><div class="center" style="font:700 16px var(--body);color:var(--ash);margin:4px 0 10px">${m.ash} Cinders to offer</div>
-<div class="scroll"><div class="list">${rows}</div><div class="center faint small" style="font-weight:700;padding:8px 0">Runs ${m.runs} · Victories ${m.wins} · Best fight ${Math.min(m.bestFight, TOTAL_FIGHTS)}${m.bestTurn ? ` · Biggest turn ${m.bestTurn}` : ''}</div></div>
+  const tag = { pyro: '<span class="ctag pyro">Pyromancer</span>', arcanist: '<span class="ctag arc">Arcanist</span>' };
+  const row = u => {
+    const lv = Meta.lvl(m, u.id), cost = Meta.nextCost(m, u), done = cost == null;
+    const pips = u.max > 1 ? `<div class="lvl">${[...Array(u.max)].map((_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div>` : '';
+    return `<div class="panel unlock ${lv ? 'has' : ''}"><div><b>${u.name}</b>${u.cls ? ' ' + tag[u.cls] : ''}${pips}
+<span class="dim small" style="font-weight:600;display:block">${u.detail}</span></div>
+${done ? `<span class="owned">${u.max > 1 ? 'Max' : 'Owned'}</span>` : `<button class="btn ${Meta.canBuy(m, u) ? 'primary' : ''}" data-u="${u.id}" ${Meta.canBuy(m, u) ? '' : 'disabled'}>${cost}</button>`}</div>`;
+  };
+  const groups = UPGRADE_GROUPS.map(g => `<h3 class="sgroup">${g}</h3><div class="list">${UNLOCKS.filter(u => u.group === g).map(row).join('')}</div>`).join('');
+  const s = screen(`<h1 class="center" style="font-size:32px">Shrine</h1><div class="center" style="font:700 16px var(--body);color:var(--ash);margin:4px 0 6px">${m.ash} Cinders to offer</div>
+<div class="scroll">${groups}<div class="center faint small" style="font-weight:700;padding:10px 0">Runs ${m.runs} · Victories ${m.wins} · Best fight ${Math.min(m.bestFight, TOTAL_FIGHTS)}${m.bestTurn ? ` · Biggest turn ${m.bestTurn}` : ''}</div></div>
 <div class="stack" style="padding-top:8px"><button class="btn" id="back">Back</button></div>`);
   on(s, '[data-u]', el => { const u = UNLOCKS.find(x => x.id === el.dataset.u); if (Meta.buy(G.meta, u)) { Sound.play('unlock'); buzz(40); Store.save(); showShrine(); } });
   on(s, '#back', () => showMenu());
